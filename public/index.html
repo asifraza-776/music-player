@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MelodySphere - Ultimate Music Discovery</title>
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Discover millions of songs, albums, and artists. Explore top charts and experience seamless music playback with MelodySphere.">
+    
+    <!-- Fonts and Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- External Styles -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="navbar">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-music"></i> Melody<span style="background: linear-gradient(135deg, #ffe6f0, #ffb6c1); -webkit-background-clip: text;">Sphere</span>
+                </div>
+                <div class="nav-links">
+                    <button class="nav-btn active" onclick="showSearch()"><i class="fas fa-search"></i> Search</button>
+                    <button class="nav-btn" onclick="showCharts()"><i class="fas fa-chart-line"></i> Charts</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="hero">
+            <h1><i class="fas fa-headphones"></i> Discover Amazing Music</h1>
+            <p>Search for artists, explore top tracks, albums, and discover new music</p>
+        </div>
+
+        <!-- Search Section -->
+        <div id="searchView">
+            <div class="search-section">
+                <div class="search-tabs">
+                    <button class="tab-btn active" onclick="switchTab('artist')"><i class="fas fa-microphone"></i> Artist Search</button>
+                    <button class="tab-btn" onclick="switchTab('track')"><i class="fas fa-music"></i> Track Search</button>
+                </div>
+                
+                <div id="artistSearch">
+                    <div class="search-container">
+                        <div class="search-box">
+                            <input type="text" id="artistInput" placeholder="Type artist name... or click mic" value="Atif Aslam">
+                            <button class="mic-btn" onclick="startVoiceSearch('artistInput')" title="Speak to Search">
+                                <i class="fas fa-microphone"></i>
+                            </button>
+                            <button class="search-btn" onclick="searchArtist()"><i class="fas fa-search"></i> Search</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="trackSearch" style="display: none;">
+                    <div class="search-container">
+                        <div class="search-box" style="flex-direction: column; background: white; border-radius: 30px; padding: 20px;">
+                            <div style="display:flex; width:100%; align-items:center;">
+                                <input type="text" id="trackInput" placeholder="Enter track name..." value="Pehli Nazar Mein" style="margin-right:10px;">
+                                <button class="mic-btn" onclick="startVoiceSearch('trackInput')" title="Speak to Search">
+                                    <i class="fas fa-microphone"></i>
+                                </button>
+                            </div>
+                            <input type="text" id="trackArtistInput" placeholder="Artist name (optional)" value="Atif Aslam">
+                            <button class="search-btn" onclick="searchTrack()" style="width:100%; margin-top:10px; border-radius:15px;"><i class="fas fa-search"></i> Search Track</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div id="chartsView" style="display: none;">
+            <div class="charts-section">
+                <div class="section-header">
+                    <div class="section-title"><i class="fas fa-chart-line"></i> Global Top Artists</div>
+                </div>
+                <div class="charts-grid" id="chartsGrid">
+                    <div class="loading" style="display:block">Loading charts...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feedback & Results -->
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p style="margin-top: 20px;">Finding tunes for you...</p>
+        </div>
+
+        <div class="results" id="results"></div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p><i class="fas fa-heart"></i> Powered by Last.fm & iTunes API | Pure Music Discovery | Free Forever</p>
+    </div>
+
+    <!-- Sticky Music Player -->
+    <div id="playerContainer">
+        <div class="player-content">
+            <div class="now-playing">
+                <div class="now-playing-icon">
+                    <i class="fas fa-music"></i>
+                </div>
+                <div class="now-playing-info">
+                    <div id="playerTitle" class="now-playing-title">Song Title</div>
+                    <div id="playerArtist" class="now-playing-artist">Artist Name</div>
+                </div>
+            </div>
+            <div class="player-frame">
+                <iframe id="youtubePlayer" width="100%" height="100%" src="" frameborder="0" allow="autoplay; encrypted-media"></iframe>
+            </div>
+            <div class="close-player" onclick="closePlayer()">
+                <i class="fas fa-times"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- External Script -->
+    <script src="app.js"></script>
+</body>
+</html>
