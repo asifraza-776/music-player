@@ -162,6 +162,12 @@ body::after {
     justify-content: center;
 }
 
+.library-tabs {
+    max-width: 600px;
+    margin: 0 0 25px 0;
+    justify-content: flex-start;
+}
+
 .tab-btn {
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
@@ -827,6 +833,62 @@ body::after {
 .close-player:hover { 
     color: var(--neon-pink);
     transform: rotate(90deg);
+}
+
+/* Desktop Player Controls */
+.player-controls {
+    flex: 1;
+    max-width: 500px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+.player-buttons {
+    display: flex;
+    gap: 25px;
+    align-items: center;
+}
+
+.player-buttons .ctrl-btn {
+    cursor: pointer;
+    font-size: 20px;
+    color: var(--text-main);
+    transition: color 0.2s;
+}
+
+.player-buttons .ctrl-btn:hover {
+    color: var(--neon-cyan);
+}
+
+.player-buttons .main-play-btn {
+    cursor: pointer;
+    font-size: 36px;
+    color: var(--neon-cyan);
+    transition: transform 0.2s;
+}
+
+.player-buttons .main-play-btn:hover {
+    transform: scale(1.1);
+}
+
+.player-progress-wrap {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.player-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 30%;
+    min-width: 200px;
+    justify-content: flex-end;
 }
 
 /* Animated Equalizer Waves */
@@ -1639,495 +1701,623 @@ input[type="range"].custom-slider::-moz-range-thumb {
     }
     
     .hero h1 {
-        font-size: 42px;
+        font-size: 38px;
     }
     
     .collection-grid {
-        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-        gap: 18px;
-    }
-    
-    .now-playing {
-        width: 28%;
-        min-width: 180px;
-    }
-    
-    .player-right {
-        width: 28%;
-        min-width: 180px;
+        grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+        gap: 16px;
     }
 }
 
 /* Small Devices (Smartphones & Phablets, <= 768px) */
 @media (max-width: 768px) {
+    html, body {
+        overflow-x: hidden !important;
+        width: 100% !important;
+    }
+
     /* Safe container padding */
     .container {
-        padding: 0 12px;
+        padding: 0 12px !important;
+        width: 100% !important;
+        max-width: 100% !important;
     }
 
     /* Compact Glass Navbar */
     .navbar {
-        padding: 10px 0;
+        padding: 8px 0 !important;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
     }
 
     .header-content {
-        flex-direction: column;
-        gap: 12px;
-        align-items: stretch;
+        flex-direction: column !important;
+        gap: 8px !important;
+        align-items: center !important;
     }
 
     .logo {
-        font-size: 22px;
+        font-size: 20px !important;
         text-align: center;
+        letter-spacing: -0.5px;
     }
 
+    .logo i {
+        font-size: 18px;
+    }
+
+    /* 4-Item App-style Nav Bar on Mobile */
     .nav-links {
-        display: flex;
-        gap: 8px;
-        overflow-x: auto;
-        padding-bottom: 4px;
-        justify-content: flex-start;
-        scrollbar-width: none;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    .nav-links::-webkit-scrollbar {
-        display: none;
+        display: grid !important;
+        grid-template-columns: repeat(4, 1fr) !important;
+        gap: 5px !important;
+        width: 100% !important;
+        padding: 0 !important;
     }
 
     .nav-btn {
-        padding: 8px 14px;
-        font-size: 12.5px;
-        white-space: nowrap;
-        border-radius: 20px;
-        flex-shrink: 0;
+        padding: 7px 4px !important;
+        font-size: 11px !important;
+        border-radius: 12px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 3px !important;
+        text-align: center !important;
+        width: 100% !important;
+        min-width: 0 !important;
     }
 
     .nav-btn i {
-        margin-right: 4px;
+        font-size: 14px !important;
+        margin-right: 0 !important;
     }
 
     /* Hero Section */
     .hero {
-        padding: 30px 10px 20px;
+        padding: 24px 6px 16px !important;
     }
 
     .hero h1 {
-        font-size: 28px;
-        letter-spacing: -1px;
-        margin-bottom: 8px;
+        font-size: 24px !important;
+        letter-spacing: -0.5px !important;
+        margin-bottom: 6px !important;
     }
 
     .hero p {
-        font-size: 13.5px;
-        line-height: 1.5;
+        font-size: 12.5px !important;
+        line-height: 1.4 !important;
     }
 
     /* Search System */
     .search-section {
-        padding: 10px 0 25px;
+        padding: 6px 0 20px !important;
     }
 
+    /* 2x2 Search Tabs */
     .search-tabs {
-        gap: 8px;
-        overflow-x: auto;
-        justify-content: flex-start;
-        padding-bottom: 8px;
-        scrollbar-width: none;
-        -webkit-overflow-scrolling: touch;
-        margin-bottom: 20px;
-    }
-
-    .search-tabs::-webkit-scrollbar {
-        display: none;
+        display: grid !important;
+        grid-template-columns: repeat(4, 1fr) !important;
+        gap: 6px !important;
+        margin-bottom: 16px !important;
+        width: 100% !important;
+        overflow: hidden !important;
     }
 
     .tab-btn {
-        padding: 8px 16px;
+        padding: 8px 4px !important;
+        font-size: 11.5px !important;
+        border-radius: 12px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 3px !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        white-space: nowrap !important;
+    }
+
+    .tab-btn i {
+        margin-right: 0 !important;
         font-size: 13px;
-        white-space: nowrap;
-        flex-shrink: 0;
+    }
+
+    .search-container {
+        width: 100% !important;
     }
 
     .search-box {
-        padding: 6px 8px;
-        border-radius: 30px;
-        gap: 8px;
+        padding: 4px 6px !important;
+        border-radius: 25px !important;
+        gap: 6px !important;
+        width: 100% !important;
     }
 
     .search-box input {
-        padding: 10px 12px;
-        font-size: 14px;
-        min-width: 0;
+        padding: 8px 10px !important;
+        font-size: 13.5px !important;
+        min-width: 0 !important;
+        flex: 1 !important;
     }
 
     .search-box button.search-btn {
-        padding: 10px 18px;
-        font-size: 13px;
-        border-radius: 25px;
-        white-space: nowrap;
+        padding: 8px 14px !important;
+        font-size: 12px !important;
+        border-radius: 20px !important;
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
     }
 
     .mic-btn {
-        width: 38px;
-        height: 38px;
-        font-size: 15px;
-        flex-shrink: 0;
+        width: 36px !important;
+        height: 36px !important;
+        font-size: 14px !important;
+        flex-shrink: 0 !important;
+    }
+
+    /* Track search box (2 inputs stacked) */
+    .track-search-box {
+        padding: 12px !important;
+        border-radius: 20px !important;
+    }
+
+    .track-search-box input {
+        padding: 8px 10px !important;
+        font-size: 13px !important;
     }
 
     /* Explore Category Chips */
     .explore-category-bar {
-        gap: 8px;
-        margin-bottom: 20px;
-        padding-bottom: 10px;
+        gap: 6px !important;
+        margin-bottom: 16px !important;
+        padding-bottom: 6px !important;
     }
 
     .explore-chip {
-        padding: 7px 14px;
-        font-size: 12px;
-        flex-shrink: 0;
+        padding: 6px 12px !important;
+        font-size: 11.5px !important;
+        border-radius: 20px !important;
+        flex-shrink: 0 !important;
     }
 
-    /* 2-Column Collection Grids for Albums & Playlists (App-like layout) */
-    .collection-grid {
-        grid-template-columns: repeat(2, 1fr) !important;
-        gap: 12px;
-    }
-
-    .collection-card {
-        padding: 10px;
-        border-radius: 16px;
-    }
-
-    .collection-card-title {
-        font-size: 13px;
-        margin: 8px 0 3px;
-    }
-
-    .collection-card-subtitle {
-        font-size: 11px;
-    }
-
-    .collection-card-footer {
-        font-size: 11px;
-        margin-top: 6px;
-    }
-
-    .collection-type-badge {
-        font-size: 9px;
-        padding: 2px 6px;
-        top: 6px;
-        left: 6px;
-    }
-
-    /* Artist Info Card */
-    .artist-card {
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-        padding: 20px 15px;
-        gap: 20px;
-        border-radius: 20px;
-    }
-
-    .artist-image {
-        width: 150px;
-        height: 150px;
-        border-radius: 16px;
-    }
-
-    .artist-name {
-        font-size: 26px;
-        letter-spacing: -0.5px;
-    }
-
-    .artist-tags {
-        justify-content: center;
-    }
-
-    .artist-stats {
-        justify-content: center;
-        gap: 10px;
-        margin: 15px 0;
-    }
-
-    .stat-card {
-        padding: 10px 14px;
-        min-width: 90px;
-        border-radius: 14px;
-    }
-
-    .stat-number {
-        font-size: 18px;
-    }
-
-    .stat-label {
-        font-size: 10px;
-    }
-
-    .artist-bio {
-        font-size: 13px;
-        line-height: 1.6;
-    }
-
-    .artist-link {
-        margin: 10px auto 0;
-    }
-
-    /* Tracks & Search Results */
-    .track-item {
-        padding: 10px 14px;
-        border-radius: 14px;
-        gap: 10px;
-    }
-
-    .track-name {
-        font-size: 13.5px;
-        margin-bottom: 3px;
-    }
-
-    .track-stats {
-        font-size: 11px;
-    }
-
-    .track-actions {
-        gap: 10px;
-    }
-
-    .track-play {
-        width: 36px;
-        height: 36px;
-        font-size: 12px;
-    }
-
-    /* Charts Grid */
-    .charts-grid {
-        grid-template-columns: repeat(2, 1fr) !important;
-        gap: 12px;
-    }
-
-    .chart-item {
-        padding: 15px 10px;
-        border-radius: 16px;
-    }
-
-    .chart-img {
-        width: 65px;
-        height: 65px;
-    }
-
-    .chart-rank {
-        width: 24px;
-        height: 24px;
-        font-size: 11px;
-    }
-
-    .chart-name {
-        font-size: 13px;
-    }
-
-    /* Sticky Mobile Player (Refined compact bar) */
-    #playerContainer {
-        padding: 8px 12px 10px 12px;
-        border-radius: 20px 20px 0 0;
-    }
-
-    .player-content {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        justify-content: space-between;
-        gap: 6px;
-        width: 100%;
-    }
-
-    /* Top row: Progress bar full width */
-    .player-controls {
-        order: 1;
-        width: 100% !important;
-        max-width: 100% !important;
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: center;
-        gap: 4px !important;
-        margin-bottom: 2px;
-    }
-
-    .player-controls > div:first-child {
-        display: flex;
-        align-items: center;
-        gap: 18px !important;
-    }
-
-    .player-controls > div:first-child i.fa-step-backward,
-    .player-controls > div:first-child i.fa-step-forward {
+    /* Section Titles */
+    .section-title {
         font-size: 16px !important;
     }
 
-    #playPauseBtn {
-        font-size: 30px !important;
+    /* 2-Column Collection Grids for Albums & Playlists (App-like layout) */
+    .collection-grid, .albums-grid {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 10px !important;
+        width: 100% !important;
     }
 
-    .player-controls > div:last-child {
-        width: 100%;
-        gap: 6px;
+    .collection-card, .album-card {
+        padding: 8px !important;
+        border-radius: 14px !important;
+        min-width: 0 !important;
+        overflow: hidden !important;
     }
 
-    #progressBar {
-        height: 4px !important;
+    .collection-cover-wrap, .album-cover {
+        width: 100% !important;
+        aspect-ratio: 1 / 1 !important;
+        height: auto !important;
+        border-radius: 10px !important;
+        overflow: hidden !important;
     }
 
-    #currentTime, #totalTime {
-        font-size: 10px;
+    .collection-cover-img, .album-cover img {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
     }
 
-    /* Now playing section on lower-left */
+    .collection-card-title, .album-name {
+        font-size: 12.5px !important;
+        margin: 6px 0 2px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+
+    .collection-card-subtitle {
+        font-size: 10.5px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+
+    .collection-card-footer {
+        font-size: 10.5px !important;
+        margin-top: 4px !important;
+    }
+
+    .collection-type-badge {
+        font-size: 8.5px !important;
+        padding: 2px 5px !important;
+        top: 4px !important;
+        left: 4px !important;
+    }
+
+    /* Artist Profile Card */
+    .artist-card {
+        flex-direction: column !important;
+        align-items: center !important;
+        text-align: center !important;
+        padding: 16px 12px !important;
+        gap: 14px !important;
+        border-radius: 18px !important;
+    }
+
+    .artist-image {
+        width: 130px !important;
+        height: 130px !important;
+        border-radius: 14px !important;
+    }
+
+    .artist-name {
+        font-size: 22px !important;
+        letter-spacing: -0.5px !important;
+    }
+
+    .artist-tags {
+        justify-content: center !important;
+        gap: 6px !important;
+    }
+
+    .tag {
+        font-size: 10px !important;
+        padding: 4px 10px !important;
+    }
+
+    .artist-stats {
+        justify-content: center !important;
+        gap: 8px !important;
+        margin: 10px 0 !important;
+    }
+
+    .stat-card {
+        padding: 8px 10px !important;
+        min-width: 75px !important;
+        border-radius: 12px !important;
+    }
+
+    .stat-number {
+        font-size: 16px !important;
+    }
+
+    .stat-label {
+        font-size: 9px !important;
+    }
+
+    .artist-bio {
+        font-size: 12px !important;
+        line-height: 1.5 !important;
+    }
+
+    .artist-link {
+        margin: 8px auto 0 !important;
+        font-size: 12px !important;
+        padding: 6px 14px !important;
+    }
+
+    /* Tracks List */
+    .track-results-grid, .tracks-grid {
+        display: grid !important;
+        gap: 8px !important;
+        width: 100% !important;
+    }
+
+    .track-item {
+        padding: 8px 10px !important;
+        border-radius: 12px !important;
+        gap: 8px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .track-info {
+        min-width: 0 !important;
+        flex: 1 !important;
+        overflow: hidden !important;
+    }
+
+    .track-name {
+        font-size: 12.5px !important;
+        margin-bottom: 2px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+
+    .track-stats {
+        font-size: 10.5px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+
+    .track-actions {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        flex-shrink: 0 !important;
+    }
+
+    .track-actions i {
+        font-size: 14px !important;
+    }
+
+    .yt-link {
+        font-size: 18px !important;
+    }
+
+    .track-play {
+        width: 32px !important;
+        height: 32px !important;
+        font-size: 11px !important;
+    }
+
+    /* Charts Grid (Top Artists) */
+    .charts-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 10px !important;
+    }
+
+    .chart-item {
+        padding: 12px 8px !important;
+        border-radius: 14px !important;
+    }
+
+    .chart-img {
+        width: 55px !important;
+        height: 55px !important;
+    }
+
+    .chart-rank {
+        width: 22px !important;
+        height: 22px !important;
+        font-size: 10px !important;
+    }
+
+    .chart-name {
+        font-size: 12px !important;
+    }
+
+    /* Sticky Mobile Player (Refined compact bottom bar) */
+    #playerContainer {
+        padding: 6px 10px 10px 10px !important;
+        border-radius: 18px 18px 0 0 !important;
+        background: rgba(10, 8, 22, 0.98) !important;
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        z-index: 3000 !important;
+    }
+
+    .player-content {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 4px !important;
+        width: 100% !important;
+    }
+
+    /* Row 1: Full-width progress bar */
+    .player-progress-wrap {
+        order: 1 !important;
+        width: 100% !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        margin-bottom: 2px !important;
+    }
+
+    .player-progress-wrap #progressBar {
+        flex: 1 !important;
+        height: 3.5px !important;
+    }
+
+    .player-progress-wrap span {
+        font-size: 9.5px !important;
+    }
+
+    /* Row 2 - Left: Song thumbnail & info */
     .now-playing {
-        order: 2;
-        width: auto;
-        min-width: 0;
-        flex: 1;
-        gap: 8px;
+        order: 2 !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        flex: 1 !important;
+        min-width: 0 !important;
+        max-width: 42% !important;
     }
 
     .now-playing-icon {
-        width: 38px;
-        height: 38px;
-        min-width: 38px;
-        border-radius: 8px;
+        width: 34px !important;
+        height: 34px !important;
+        min-width: 34px !important;
+        border-radius: 6px !important;
+        font-size: 14px !important;
+    }
+
+    .now-playing-info {
+        min-width: 0 !important;
+        flex: 1 !important;
+        overflow: hidden !important;
     }
 
     .now-playing-title {
-        font-size: 12.5px;
-        max-width: 120px;
+        font-size: 11.5px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
     }
 
     .now-playing-artist {
-        font-size: 10.5px;
-        max-width: 120px;
+        font-size: 9.5px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
     }
 
     .equalizer-waves {
-        display: none;
+        display: none !important;
     }
 
-    /* Action buttons on lower-right */
+    /* Row 2 - Center: Prev, Play, Next controls */
+    .player-controls {
+        order: 3 !important;
+        flex: none !important;
+        width: auto !important;
+        max-width: none !important;
+        display: flex !important;
+        align-items: center !important;
+    }
+
+    .player-buttons {
+        display: flex !important;
+        align-items: center !important;
+        gap: 12px !important;
+    }
+
+    .player-buttons .ctrl-btn {
+        font-size: 15px !important;
+    }
+
+    .player-buttons .main-play-btn {
+        font-size: 28px !important;
+    }
+
+    /* Row 2 - Right: Lyrics, Download, Close */
     .player-right {
-        order: 3;
-        width: auto;
-        min-width: 0;
-        gap: 6px;
-        display: flex;
-        align-items: center;
+        order: 4 !important;
+        width: auto !important;
+        min-width: 0 !important;
+        gap: 5px !important;
+        display: flex !important;
+        align-items: center !important;
+        flex-shrink: 0 !important;
     }
 
     .volume-control-wrap {
-        display: none !important; /* Hardware volume buttons used on phone */
+        display: none !important;
     }
 
     .player-action-btn {
-        width: 34px !important;
-        height: 34px !important;
-        font-size: 13px !important;
+        width: 30px !important;
+        height: 30px !important;
+        font-size: 11.5px !important;
     }
 
     .close-player {
-        font-size: 15px;
-        padding: 2px;
+        font-size: 14px !important;
+        padding: 2px !important;
+        margin-left: 0 !important;
     }
 
-    /* Modals on Mobile */
+    /* Modals as Mobile Bottom-Sheets */
     .modal-overlay {
-        padding: 10px;
-        align-items: flex-end;
+        padding: 0 !important;
+        align-items: flex-end !important;
     }
 
     .modal-card {
-        max-height: 85vh;
-        border-radius: 25px 25px 0 0;
-        width: 100%;
+        max-height: 85vh !important;
+        border-radius: 22px 22px 0 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        border-bottom: none !important;
     }
 
     .modal-header {
-        padding: 14px 18px;
+        padding: 12px 16px !important;
     }
 
     .modal-body {
-        padding: 14px 18px;
+        padding: 12px 16px !important;
+        max-height: calc(85vh - 60px) !important;
+        overflow-y: auto !important;
     }
 
     .collection-hero {
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-        gap: 12px;
+        flex-direction: column !important;
+        align-items: center !important;
+        text-align: center !important;
+        gap: 10px !important;
+        margin-bottom: 15px !important;
     }
 
     .collection-hero-img {
-        width: 130px;
-        height: 130px;
-        border-radius: 14px;
+        width: 120px !important;
+        height: 120px !important;
+        border-radius: 12px !important;
+        margin: 0 auto !important;
     }
 
     .collection-title {
-        font-size: 20px;
+        font-size: 18px !important;
     }
 
     .collection-actions {
-        justify-content: center;
-        flex-wrap: wrap;
-        gap: 8px;
+        justify-content: center !important;
+        flex-wrap: wrap !important;
+        gap: 6px !important;
     }
 
     .collection-actions button {
-        padding: 8px 16px !important;
-        font-size: 12px !important;
+        padding: 7px 14px !important;
+        font-size: 11.5px !important;
     }
 
     /* Footer padding for sticky player */
     .footer {
-        margin-bottom: 120px;
-        font-size: 12px;
-        padding: 20px 10px;
+        margin-bottom: 110px !important;
+        font-size: 11.5px !important;
+        padding: 15px 10px !important;
     }
 }
 
-/* Extra Small Devices (Phones <= 480px) */
-@media (max-width: 480px) {
-    .hero h1 {
-        font-size: 24px;
+/* Extra Small Devices (Smartphones <= 420px) */
+@media (max-width: 420px) {
+    .now-playing {
+        max-width: 36% !important;
     }
 
-    .collection-grid {
-        grid-template-columns: repeat(2, 1fr) !important;
-        gap: 10px;
+    .player-buttons {
+        gap: 8px !important;
     }
 
-    .collection-card {
-        padding: 8px;
+    .player-buttons .main-play-btn {
+        font-size: 26px !important;
     }
 
-    .collection-cover-wrap {
-        border-radius: 10px;
+    .player-buttons .ctrl-btn {
+        font-size: 13px !important;
     }
 
-    .collection-card-title {
-        font-size: 12px;
+    .player-right {
+        gap: 3px !important;
     }
 
-    .now-playing-title {
-        max-width: 85px;
-    }
-
-    .now-playing-artist {
-        max-width: 85px;
-    }
-
-    .load-more-btn {
-        padding: 10px 20px;
-        font-size: 13px;
+    .player-action-btn {
+        width: 28px !important;
+        height: 28px !important;
+        font-size: 10.5px !important;
     }
 }
+
 
 
 
