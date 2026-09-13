@@ -1,0 +1,29 @@
+{
+  "likedTracks": [],
+  "likedAlbums": [
+    {
+      "id": "1139549",
+      "title": "Aashiqui 2",
+      "artist": "Jeet Gannguli, Mithoon, Ankit Tiwari",
+      "image": "https://c.saavncdn.com/430/Aashiqui-2-Hindi-2013-500x500.jpg",
+      "songCount": 10
+    }
+  ],
+  "likedPlaylists": [],
+  "customPlaylists": [
+    {
+      "id": "pl_1789335088578_n5ep",
+      "name": "Night Vibes",
+      "description": "Chill tracks",
+      "createdAt": "2026-09-13T21:31:28.578Z",
+      "image": "https://c.saavncdn.com/500/Aashiqui-2-Hindi-2013-500x500.jpg",
+      "tracks": [
+        {
+          "track": "Tum Hi Ho",
+          "artist": "Arijit Singh",
+          "image": "https://c.saavncdn.com/500/Aashiqui-2-Hindi-2013-500x500.jpg"
+        }
+      ]
+    }
+  ]
+}

@@ -1,8 +1,39 @@
 const express = require("express");
 const path = require("path");
 const os = require("os");
+const fs = require("fs");
 require("dotenv").config();
 const app = express();
+
+// Database initialization
+const dataDir = path.join(__dirname, "data");
+if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+const DB_FILE = path.join(dataDir, "database.json");
+
+function readDB() {
+  try {
+    if (!fs.existsSync(DB_FILE)) {
+      const initial = { likedTracks: [], likedAlbums: [], likedPlaylists: [], customPlaylists: [] };
+      fs.writeFileSync(DB_FILE, JSON.stringify(initial, null, 2));
+      return initial;
+    }
+    const raw = fs.readFileSync(DB_FILE, "utf8");
+    return JSON.parse(raw);
+  } catch (err) {
+    console.error("DB Read Error:", err);
+    return { likedTracks: [], likedAlbums: [], likedPlaylists: [], customPlaylists: [] };
+  }
+}
+
+function writeDB(data) {
+  try {
+    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+    return true;
+  } catch (err) {
+    console.error("DB Write Error:", err);
+    return false;
+  }
+}
 
 // Your Last.fm API Key
 const LASTFM_API_KEY = process.env.LASTFM_API_KEY;
@@ -207,8 +238,486 @@ app.get("/api/yt/search", async (req, res) => {
   }
 });
 
+// JioSaavn Search and Direct Ad-Free Audio Stream Routes
+app.get("/api/saavn/search", async (req, res) => {
+  try {
+    const rawQuery = req.query.q;
+    if (!rawQuery) return res.status(400).json({ error: "Missing query" });
+
+    console.log(`🎶 JioSaavn searching for: ${rawQuery}`);
+
+    async function fetchFromSaavn(q) {
+      const searchUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&cc=in&includeMetaTags=1&p=1&n=5&q=${encodeURIComponent(q)}`;
+      const searchRes = await fetch(searchUrl, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+      });
+      return await searchRes.json();
+    }
+
+    let searchData = await fetchFromSaavn(rawQuery);
+
+    if (!searchData.results || searchData.results.length === 0) {
+      // Clean query by removing (From ...), [Remix], etc.
+      const cleaned = rawQuery.replace(/\(.*?\)/g, "").replace(/\[.*?\]/g, "").replace(/['"]/g, "").replace(/\s+/g, " ").trim();
+      if (cleaned && cleaned !== rawQuery) {
+        console.log(`🎶 Retrying with cleaned query: ${cleaned}`);
+        searchData = await fetchFromSaavn(cleaned);
+      }
+    }
+
+    if (!searchData.results || searchData.results.length === 0) {
+      return res.status(404).json({ success: false, error: "Song not found on JioSaavn" });
+    }
+
+    const song = searchData.results[0];
+    const encUrl = song.encrypted_media_url || (song.more_info && song.more_info.encrypted_media_url);
+
+    if (!encUrl) {
+      return res.status(404).json({ success: false, error: "Audio stream not found" });
+    }
+
+    // Generate Auth Token for direct 320kbps CDN URL
+    const tokenUrl = `https://www.jiosaavn.com/api.php?__call=song.generateAuthToken&url=${encodeURIComponent(encUrl)}&bitrate=320&api_version=4&_format=json&ctx=web6dot0&_marker=0`;
+    const tokenRes = await fetch(tokenUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      }
+    });
+    const tokenData = await tokenRes.json();
+
+    if (!tokenData.auth_url) {
+      return res.status(404).json({ success: false, error: "Failed to generate stream URL" });
+    }
+
+    // High resolution album/track artwork
+    let hdImage = song.image ? song.image.replace("150x150", "500x500").replace("50x50", "500x500") : null;
+
+    res.json({
+      success: true,
+      id: song.id,
+      has_lyrics: song.has_lyrics === 'true',
+      title: song.song || song.title,
+      artist: song.primary_artists || song.singers || song.music,
+      image: hdImage,
+      duration: song.duration,
+      streamUrl: `/api/saavn/stream?url=${encodeURIComponent(tokenData.auth_url)}`
+    });
+  } catch (err) {
+    console.error("JioSaavn Search Error:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Multi-Source Lyrics Route (JioSaavn + LRCLIB + Lyrics.ovh)
+app.get("/api/saavn/lyrics", async (req, res) => {
+  try {
+    const songId = req.query.id;
+    const track = req.query.track || "";
+    const artist = req.query.artist || "";
+
+    // Source 1: JioSaavn Official Lyrics (if songId provided)
+    if (songId) {
+      try {
+        const lyricsUrl = `https://www.jiosaavn.com/api.php?__call=lyrics.getLyrics&_format=json&lyrics_id=${encodeURIComponent(songId)}&ctx=web6dot0&api_version=4`;
+        const response = await fetch(lyricsUrl, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+          }
+        });
+        const data = await response.json();
+        if (data && data.lyrics && data.lyrics.trim().length > 10) {
+          return res.json({ success: true, source: 'JioSaavn', lyrics: data.lyrics, snippet: data.snippet });
+        }
+      } catch (err) {
+        console.log("JioSaavn lyrics fetch error:", err.message);
+      }
+    }
+
+    // Source 2: LRCLIB (Global, Bollywood, English lyrics database)
+    if (track) {
+      try {
+        const cleanTrack = track.replace(/\(.*?\)/g, "").replace(/\[.*?\]/g, "").replace(/['"]/g, "").trim();
+        const cleanArtist = artist.split(",")[0].split("&")[0].split("feat")[0].replace(/\(.*?\)/g, "").trim();
+        
+        let lrcUrl = `https://lrclib.net/api/get?track_name=${encodeURIComponent(cleanTrack)}`;
+        if (cleanArtist) lrcUrl += `&artist_name=${encodeURIComponent(cleanArtist)}`;
+
+        const lrcRes = await fetch(lrcUrl, {
+          headers: { "User-Agent": "MelodySphere/1.0" }
+        });
+        
+        if (lrcRes.ok) {
+          const lrcData = await lrcRes.json();
+          let lyrics = lrcData.plainLyrics;
+          if (!lyrics && lrcData.syncedLyrics) {
+            lyrics = lrcData.syncedLyrics.replace(/\[\d+:\d+\.\d+\]\s*/g, '');
+          }
+          if (lyrics && lyrics.trim().length > 10) {
+            return res.json({ success: true, source: 'LRCLIB', lyrics: lyrics.replace(/\n/g, '<br>') });
+          }
+        }
+      } catch (err) {
+        console.log("LRCLIB lyrics fetch error:", err.message);
+      }
+    }
+
+    // Source 3: Lyrics.ovh Fallback
+    if (track && artist) {
+      try {
+        const cleanTrack = track.replace(/\(.*?\)/g, "").replace(/\[.*?\]/g, "").trim();
+        const cleanArtist = artist.split(",")[0].trim();
+        const ovhUrl = `https://api.lyrics.ovh/v1/${encodeURIComponent(cleanArtist)}/${encodeURIComponent(cleanTrack)}`;
+        const ovhRes = await fetch(ovhUrl);
+        if (ovhRes.ok) {
+          const ovhData = await ovhRes.json();
+          if (ovhData && ovhData.lyrics && ovhData.lyrics.trim().length > 10) {
+            return res.json({ success: true, source: 'Lyrics.ovh', lyrics: ovhData.lyrics.replace(/\n/g, '<br>') });
+          }
+        }
+      } catch (err) {}
+    }
+
+    res.status(404).json({ success: false, error: "Lyrics not available for this song" });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Stream audio proxy with Range header support for seamless playback and seeking
+app.get("/api/saavn/stream", async (req, res) => {
+  try {
+    const rawUrl = req.query.url;
+    if (!rawUrl) return res.status(400).send("Missing URL");
+
+    const headers = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Referer": "https://www.jiosaavn.com/"
+    };
+
+    if (req.headers.range) {
+      headers["Range"] = req.headers.range;
+    }
+
+    const audioRes = await fetch(rawUrl, { headers });
+
+    res.status(audioRes.status);
+    for (const [key, value] of audioRes.headers.entries()) {
+      if (['content-type', 'content-length', 'content-range', 'accept-ranges'].includes(key.toLowerCase())) {
+        res.setHeader(key, value);
+      }
+    }
+
+    const { Readable } = require("stream");
+    Readable.fromWeb(audioRes.body).pipe(res);
+  } catch (err) {
+    console.error("Stream Proxy Error:", err.message);
+    res.status(500).send("Error streaming audio");
+  }
+});
+
+// ==========================================
+// 💾 DATABASE & USER LIBRARY REST ROUTES
+// ==========================================
+
+// Get entire library (Liked tracks, albums, playlists & custom playlists)
+app.get("/api/user/library", (req, res) => {
+  const db = readDB();
+  res.json({ success: true, ...db });
+});
+
+// Toggle Like (track, album, or playlist)
+app.post("/api/user/library/like", (req, res) => {
+  const { type, item } = req.body;
+  if (!type || !item) return res.status(400).json({ success: false, error: "Missing type or item" });
+
+  const db = readDB();
+  let liked = false;
+
+  if (type === "track") {
+    if (!db.likedTracks) db.likedTracks = [];
+    const idx = db.likedTracks.findIndex(t => t.track.toLowerCase() === item.track.toLowerCase() && t.artist.toLowerCase() === item.artist.toLowerCase());
+    if (idx > -1) {
+      db.likedTracks.splice(idx, 1);
+      liked = false;
+    } else {
+      db.likedTracks.unshift({ track: item.track, artist: item.artist, image: item.image || "", id: item.id || "" });
+      liked = true;
+    }
+  } else if (type === "album") {
+    if (!db.likedAlbums) db.likedAlbums = [];
+    const idx = db.likedAlbums.findIndex(a => (a.id && item.id && a.id === item.id) || (a.title && item.title && a.title.toLowerCase() === item.title.toLowerCase()));
+    if (idx > -1) {
+      db.likedAlbums.splice(idx, 1);
+      liked = false;
+    } else {
+      db.likedAlbums.unshift({ id: item.id, title: item.title, artist: item.artist, image: item.image, songCount: item.songCount });
+      liked = true;
+    }
+  } else if (type === "playlist") {
+    if (!db.likedPlaylists) db.likedPlaylists = [];
+    const idx = db.likedPlaylists.findIndex(p => (p.id && item.id && p.id === item.id) || (p.title && item.title && p.title.toLowerCase() === item.title.toLowerCase()));
+    if (idx > -1) {
+      db.likedPlaylists.splice(idx, 1);
+      liked = false;
+    } else {
+      db.likedPlaylists.unshift({ id: item.id, title: item.title, image: item.image, count: item.count });
+      liked = true;
+    }
+  }
+
+  writeDB(db);
+  res.json({ success: true, liked, ...db });
+});
+
+// Custom Playlists CRUD
+app.get("/api/playlists", (req, res) => {
+  const db = readDB();
+  res.json({ success: true, playlists: db.customPlaylists || [] });
+});
+
+app.post("/api/playlists", (req, res) => {
+  const { name, description } = req.body;
+  if (!name || !name.trim()) return res.status(400).json({ success: false, error: "Playlist name is required" });
+
+  const db = readDB();
+  if (!db.customPlaylists) db.customPlaylists = [];
+  const newPlaylist = {
+    id: 'pl_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+    name: name.trim(),
+    description: description ? description.trim() : "",
+    createdAt: new Date().toISOString(),
+    image: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60",
+    tracks: []
+  };
+  db.customPlaylists.unshift(newPlaylist);
+  writeDB(db);
+  res.json({ success: true, playlist: newPlaylist, playlists: db.customPlaylists });
+});
+
+app.delete("/api/playlists/:id", (req, res) => {
+  const db = readDB();
+  db.customPlaylists = (db.customPlaylists || []).filter(p => p.id !== req.params.id);
+  writeDB(db);
+  res.json({ success: true, playlists: db.customPlaylists });
+});
+
+app.post("/api/playlists/:id/tracks", (req, res) => {
+  const { track, artist, image } = req.body;
+  if (!track || !artist) return res.status(400).json({ success: false, error: "Track and artist are required" });
+
+  const db = readDB();
+  const playlist = (db.customPlaylists || []).find(p => p.id === req.params.id);
+  if (!playlist) return res.status(404).json({ success: false, error: "Playlist not found" });
+
+  if (!playlist.tracks) playlist.tracks = [];
+  const exists = playlist.tracks.some(t => t.track.toLowerCase() === track.toLowerCase() && t.artist.toLowerCase() === artist.toLowerCase());
+  if (exists) {
+    return res.status(400).json({ success: false, error: "Track already in this playlist" });
+  }
+
+  playlist.tracks.push({ track, artist, image: image || "" });
+  if (image && (!playlist.image || playlist.image.includes('unsplash'))) {
+    playlist.image = image;
+  }
+  writeDB(db);
+  res.json({ success: true, playlist });
+});
+
+app.delete("/api/playlists/:id/tracks/:trackIndex", (req, res) => {
+  const db = readDB();
+  const playlist = (db.customPlaylists || []).find(p => p.id === req.params.id);
+  if (!playlist) return res.status(404).json({ success: false, error: "Playlist not found" });
+
+  const idx = parseInt(req.params.trackIndex);
+  if (idx >= 0 && idx < playlist.tracks.length) {
+    playlist.tracks.splice(idx, 1);
+    writeDB(db);
+  }
+  res.json({ success: true, playlist });
+});
+
+// ==========================================
+// 💿 JIOSAAVN ALBUM & PLAYLIST ROUTES
+// ==========================================
+
+// JioSaavn Search Albums
+app.get("/api/saavn/album/search", async (req, res) => {
+  try {
+    const q = req.query.q;
+    if (!q) return res.status(400).json({ error: "Missing query" });
+    const searchUrl = `https://www.jiosaavn.com/api.php?__call=search.getAlbumResults&q=${encodeURIComponent(q)}&_format=json&_marker=0&n=12&p=1&ctx=web6dot0`;
+    const response = await fetch(searchUrl, {
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" }
+    });
+    const data = await response.json();
+    const results = (data.results || []).map(alb => ({
+      id: alb.albumid,
+      title: alb.title,
+      artist: typeof alb.artist === 'string' ? alb.artist : (alb.primary_artists || alb.music || 'Various Artists'),
+      year: alb.year || "",
+      image: alb.image ? alb.image.replace("150x150", "500x500").replace("50x50", "500x500") : null,
+      perma_url: alb.perma_url
+    }));
+    res.json({ success: true, results });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// JioSaavn Get Album Details with all tracks
+app.get("/api/saavn/album", async (req, res) => {
+  try {
+    const albumId = req.query.id;
+    if (!albumId) return res.status(400).json({ error: "Missing album id" });
+
+    const albumUrl = `https://www.jiosaavn.com/api.php?__call=content.getAlbumDetails&albumid=${encodeURIComponent(albumId)}&_format=json`;
+    const response = await fetch(albumUrl, {
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" }
+    });
+    const data = await response.json();
+    const rawSongs = data.list || data.songs || [];
+    const songs = rawSongs.map(s => ({
+      id: s.id,
+      title: s.title || s.song,
+      artist: s.singers || s.primary_artists || s.music || "Unknown Artist",
+      duration: s.duration,
+      image: s.image ? s.image.replace("150x150", "500x500").replace("50x50", "500x500") : (data.image ? data.image.replace("150x150", "500x500") : null),
+      has_lyrics: s.has_lyrics === 'true'
+    }));
+
+    res.json({
+      success: true,
+      id: data.albumid || albumId,
+      title: data.title || data.name,
+      artist: typeof data.artist === 'string' ? data.artist : (data.primary_artists || data.music || 'Various Artists'),
+      year: data.year,
+      image: data.image ? data.image.replace("150x150", "500x500").replace("50x50", "500x500") : null,
+      songs
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// JioSaavn Search Playlists
+app.get("/api/saavn/playlist/search", async (req, res) => {
+  try {
+    const q = req.query.q;
+    if (!q) return res.status(400).json({ error: "Missing query" });
+    const searchUrl = `https://www.jiosaavn.com/api.php?__call=search.getPlaylistResults&q=${encodeURIComponent(q)}&_format=json&_marker=0&n=12&p=1&ctx=web6dot0`;
+    const response = await fetch(searchUrl, {
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" }
+    });
+    const data = await response.json();
+    const results = (data.results || []).map(pl => ({
+      id: pl.listid,
+      title: pl.listname || pl.title,
+      image: pl.image ? pl.image.replace("150x150", "500x500").replace("50x50", "500x500") : null,
+      count: pl.numsongs || pl.count || 0,
+      artist: pl.artist_name || pl.firstname || "JioSaavn Editor"
+    }));
+    res.json({ success: true, results });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// JioSaavn Get Playlist Details with all tracks
+app.get("/api/saavn/playlist", async (req, res) => {
+  try {
+    const playlistId = req.query.id;
+    if (!playlistId) return res.status(400).json({ error: "Missing playlist id" });
+
+    const plUrl = `https://www.jiosaavn.com/api.php?__call=playlist.getDetails&listid=${encodeURIComponent(playlistId)}&_format=json&_marker=0&ctx=web6dot0`;
+    const response = await fetch(plUrl, {
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" }
+    });
+    const data = await response.json();
+    const rawSongs = data.songs || data.list || [];
+    const songs = rawSongs.map(s => ({
+      id: s.id,
+      title: s.title || s.song,
+      artist: s.singers || s.primary_artists || s.music || "Unknown Artist",
+      duration: s.duration,
+      image: s.image ? s.image.replace("150x150", "500x500").replace("50x50", "500x500") : (data.image ? data.image.replace("150x150", "500x500") : null),
+      has_lyrics: s.has_lyrics === 'true'
+    }));
+
+    res.json({
+      success: true,
+      id: data.listid || playlistId,
+      title: data.listname || data.title,
+      image: data.image ? data.image.replace("150x150", "500x500").replace("50x50", "500x500") : null,
+      count: songs.length,
+      songs
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Featured / Curated Playlists & Trending Albums
+app.get("/api/saavn/featured", async (req, res) => {
+  try {
+    const featuredPlaylists = [
+      { id: "1077703816", title: "Trending Bollywood Hits", image: "https://c.saavncdn.com/editorial/TrendingTodayHindi_20260305105234_500x500.jpg", count: 40, category: "Trending" },
+      { id: "154546814", title: "90s Romance - Hindi", image: "https://c.saavncdn.com/editorial/90sRomanceHindi_20260302042658_500x500.jpg", count: 45, category: "90s & 2000s" },
+      { id: "32049168", title: "Best of Arijit Singh", image: "https://c.saavncdn.com/editorial/BestofArijitSingh_20260216062758_500x500.jpg", count: 50, category: "Romance" },
+      { id: "82914101", title: "Punjabi Party Hits", image: "https://c.saavncdn.com/editorial/Let_sPlayPunjabiParty_20260302042658_500x500.jpg", count: 35, category: "Punjabi" },
+      { id: "159384592", title: "Lo-Fi Midnight Chill", image: "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=500&auto=format&fit=crop&q=60", count: 30, category: "Lo-Fi" },
+      { id: "110858205", title: "Romantic Melodies Hindi", image: "https://c.saavncdn.com/editorial/RomanticHitsHindi_20260302042658_500x500.jpg", count: 40, category: "Romance" },
+      { id: "48544505", title: "2000s Bollywood Nostalgia", image: "https://c.saavncdn.com/editorial/2000sNostalgiaHindi_20260216062758_500x500.jpg", count: 45, category: "90s & 2000s" },
+      { id: "108151241", title: "Punjabi Pop & Hip Hop", image: "https://c.saavncdn.com/editorial/PunjabiSwag_20260302042658_500x500.jpg", count: 35, category: "Punjabi" },
+      { id: "112648784", title: "Ultimate Party Mix Hindi", image: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500&auto=format&fit=crop&q=60", count: 35, category: "Party" },
+      { id: "113749214", title: "Heartbroken & Sad Melodies", image: "https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?w=500&auto=format&fit=crop&q=60", count: 40, category: "Sad Hits" },
+      { id: "114002624", title: "Spiritual & Devotional Peace", image: "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=500&auto=format&fit=crop&q=60", count: 30, category: "Devotional & Sufi" },
+      { id: "113894247", title: "Sufi & Soulful Magic", image: "https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=500&auto=format&fit=crop&q=60", count: 35, category: "Devotional & Sufi" },
+      { id: "114112948", title: "Acoustic & Unplugged Sessions", image: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60", count: 28, category: "Lo-Fi" },
+      { id: "113948752", title: "Late Night Long Drive", image: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=500&auto=format&fit=crop&q=60", count: 32, category: "Trending" },
+      { id: "112574163", title: "Workout High Energy Hits", image: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=500&auto=format&fit=crop&q=60", count: 30, category: "Party" },
+      { id: "107297314", title: "Monsoon & Rainy Chai Vibes", image: "https://images.unsplash.com/photo-1519692933481-e162a57d6721?w=500&auto=format&fit=crop&q=60", count: 30, category: "Romance" },
+      { id: "107567831", title: "Top 50 Hindi India", image: "https://c.saavncdn.com/editorial/Top50HindiIndia_20260305105234_500x500.jpg", count: 50, category: "Trending" },
+      { id: "114589234", title: "Golden Retro 70s & 80s", image: "https://images.unsplash.com/photo-1487180144351-b8472da7d491?w=500&auto=format&fit=crop&q=60", count: 40, category: "90s & 2000s" },
+      { id: "115289111", title: "Soulful Atif Aslam", image: "https://c.saavncdn.com/editorial/BestofAtifAslam_20260216062758_500x500.jpg", count: 35, category: "Romance" },
+      { id: "115982112", title: "Shreya Ghoshal Pure Melodies", image: "https://c.saavncdn.com/editorial/BestofShreyaGhoshal_20260216062758_500x500.jpg", count: 35, category: "Romance" },
+      { id: "116298114", title: "Sidhu Moose Wala Tribute", image: "https://images.unsplash.com/photo-1511735111819-9a3f7709049c?w=500&auto=format&fit=crop&q=60", count: 30, category: "Punjabi" },
+      { id: "117281992", title: "Desi Hip-Hop & Rap Revolution", image: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=500&auto=format&fit=crop&q=60", count: 35, category: "Party" }
+    ];
+
+    const trendingAlbums = [
+      { id: "1139549", title: "Aashiqui 2", artist: "Mithoon, Ankit Tiwari, Jeet Gannguli", year: "2013", category: "Romance", image: "https://c.saavncdn.com/500/Aashiqui-2-Hindi-2013-500x500.jpg" },
+      { id: "1045274", title: "Rockstar", artist: "A.R. Rahman", year: "2011", category: "Trending", image: "https://c.saavncdn.com/408/Rockstar-Hindi-2011-20221212023139-500x500.jpg" },
+      { id: "14285220", title: "Kabir Singh", artist: "Sachet-Parampara, Vishal Mishra, Mithoon", year: "2019", category: "Romance", image: "https://c.saavncdn.com/393/Kabir-Singh-Hindi-2019-20190614075009-500x500.jpg" },
+      { id: "1164998", title: "Yeh Jawaani Hai Deewani", artist: "Pritam", year: "2013", category: "Party", image: "https://c.saavncdn.com/712/Yeh-Jawaani-Hai-Deewani-Hindi-2013-500x500.jpg" },
+      { id: "50074128", title: "Animal", artist: "JAM8, Vishal Mishra, Manan Bhardwaj", year: "2023", category: "Trending", image: "https://c.saavncdn.com/023/ANIMAL-Hindi-2023-20231124191036-500x500.jpg" },
+      { id: "47970921", title: "Jawan", artist: "Anirudh Ravichander", year: "2023", category: "Trending", image: "https://c.saavncdn.com/849/Jawan-Hindi-2023-20230905183424-500x500.jpg" },
+      { id: "26830501", title: "Shershaah", artist: "Tanishk Bagchi, Jasleen Royal, B Praak", year: "2021", category: "Romance", image: "https://c.saavncdn.com/033/Shershaah-Original-Motion-Picture-Soundtrack--Hindi-2021-20210815181610-500x500.jpg" },
+      { id: "359871", title: "Dilwale Dulhania Le Jayenge", artist: "Jatin-Lalit", year: "1995", category: "90s & 2000s", image: "https://c.saavncdn.com/624/Dilwale-Dulhania-Le-Jayenge-Hindi-1995-20200924151745-500x500.jpg" },
+      { id: "1114545", title: "Jab We Met", artist: "Pritam, Sandesh Shandilya", year: "2007", category: "90s & 2000s", image: "https://c.saavncdn.com/068/Jab-We-Met-Hindi-2007-500x500.jpg" },
+      { id: "36605051", title: "Brahmastra Part One: Shiva", artist: "Pritam", year: "2022", category: "Romance", image: "https://c.saavncdn.com/264/Brahmastra-Original-Motion-Picture-Soundtrack-Hindi-2022-20221006180556-500x500.jpg" },
+      { id: "2100868", title: "Ae Dil Hai Mushkil", artist: "Pritam", year: "2016", category: "Sad Hits", image: "https://c.saavncdn.com/062/Ae-Dil-Hai-Mushkil-Deluxe-Edition-Hindi-2016-500x500.jpg" },
+      { id: "1038573", title: "Kal Ho Naa Ho", artist: "Shankar-Ehsaan-Loy", year: "2003", category: "90s & 2000s", image: "https://c.saavncdn.com/040/Kal-Ho-Naa-Ho-Hindi-2003-500x500.jpg" },
+      { id: "11611762", title: "Sanam Teri Kasam", artist: "Himesh Reshammiya", year: "2016", category: "Sad Hits", image: "https://c.saavncdn.com/974/Sanam-Teri-Kasam-Hindi-2016-500x500.jpg" },
+      { id: "32579124", title: "Gangubai Kathiawadi", artist: "Sanjay Leela Bhansali", year: "2022", category: "Trending", image: "https://c.saavncdn.com/604/Gangubai-Kathiawadi-Hindi-2022-20220218173516-500x500.jpg" },
+      { id: "39965825", title: "Pathaan", artist: "Vishal-Shekhar", year: "2023", category: "Party", image: "https://c.saavncdn.com/807/Pathaan-Hindi-2022-20221222104158-500x500.jpg" },
+      { id: "51147986", title: "Dunki", artist: "Pritam", year: "2023", category: "Romance", image: "https://c.saavncdn.com/584/Dunki-Hindi-2023-20231218171008-500x500.jpg" },
+      { id: "52677561", title: "Fighter", artist: "Vishal-Shekhar", year: "2024", category: "Party", image: "https://c.saavncdn.com/712/Fighter-Hindi-2024-20240123141014-500x500.jpg" },
+      { id: "56829112", title: "Stree 2", artist: "Sachin-Jigar", year: "2024", category: "Trending", image: "https://c.saavncdn.com/834/Stree-2-Hindi-2024-20240816151004-500x500.jpg" },
+      { id: "13679802", title: "Kesari", artist: "Arko, Tanishk Bagchi, Jasleen Royal", year: "2019", category: "Trending", image: "https://c.saavncdn.com/384/Kesari-Hindi-2019-20190318151522-500x500.jpg" },
+      { id: "4598712", title: "Sonu Ke Titu Ki Sweety", artist: "Zack Knight, Rochak Kohli, Yo Yo Honey Singh", year: "2018", category: "Party", image: "https://c.saavncdn.com/479/Sonu-Ke-Titu-Ki-Sweety-Hindi-2018-20180214-500x500.jpg" },
+      { id: "2348571", title: "Half Girlfriend", artist: "Mithoon, Tanishk Bagchi, Rishi Rich", year: "2017", category: "Romance", image: "https://c.saavncdn.com/132/Half-Girlfriend-Hindi-2017-500x500.jpg" },
+      { id: "2249764", title: "Raabta", artist: "Pritam, JAM8", year: "2017", category: "Romance", image: "https://c.saavncdn.com/581/Raabta-Hindi-2017-500x500.jpg" }
+    ];
+
+    res.json({ success: true, playlists: featuredPlaylists, albums: trendingAlbums });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Recognize Song (Audio Fingerprinting via Shazam API)
-const fs = require("fs");
 const { exec } = require("child_process");
 const util = require("util");
 const execPromise = util.promisify(exec);
