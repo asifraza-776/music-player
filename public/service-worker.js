@@ -1,5 +1,5 @@
 // MelodySphere PWA Service Worker (PWABuilder & Google Play Store Compliant)
-const CACHE_NAME = 'melodysphere-v8';
+const CACHE_NAME = 'melodysphere-v9';
 const OFFLINE_PAGE = '/offline.html';
 
 const APP_SHELL = [
