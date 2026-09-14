@@ -917,6 +917,7 @@ body::after {
 }
 
 .player-main-row {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -930,7 +931,7 @@ body::after {
     gap: 14px;
     flex: 1;
     min-width: 200px;
-    max-width: 340px;
+    max-width: 32%;
 }
 
 .now-playing-icon {
@@ -989,17 +990,21 @@ body::after {
 .player-actions-cluster {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 28px;
-    flex: 2;
+    justify-content: flex-end;
+    flex: 1;
 }
 
-/* ---- Main Playback Buttons (Prev / Play / Next) ---- */
+/* ---- Main Playback Buttons (Prev / Play / Next) - Perfectly Centered on Desktop ---- */
 .player-buttons {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
     display: flex;
-    gap: 20px;
+    gap: 32px;
     align-items: center;
+    z-index: 2;
 }
+
 
 .player-buttons .ctrl-btn {
     cursor: pointer;
@@ -2619,6 +2624,8 @@ input[type="range"].custom-slider::-moz-range-thumb {
 
     /* Big Prominent Playback buttons: Prev, Play, Next */
     .player-buttons {
+        position: static !important;
+        transform: none !important;
         display: flex !important;
         align-items: center !important;
         gap: 18px !important;
@@ -2883,6 +2890,8 @@ input[type="range"].custom-slider::-moz-range-thumb {
     }
 
     .player-buttons {
+        position: static !important;
+        transform: none !important;
         display: flex !important;
         align-items: center !important;
         gap: 16px !important;
