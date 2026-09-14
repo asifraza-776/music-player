@@ -954,6 +954,7 @@ function playCollectionTrackByIndex(index) {
         artist: s.artist || s.singers || ''
     }));
 
+    closeCollectionModal();
     playTrackByIndex(index);
 }
 
@@ -973,6 +974,7 @@ function playCurrentCollection(isShuffle = false) {
         artist: s.artist || s.singers || ''
     }));
 
+    closeCollectionModal();
     playTrackByIndex(0);
 }
 
