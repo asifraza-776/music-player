@@ -73,6 +73,32 @@ async function getArtistImage(artistName) {
   return null;
 }
 
+// Helper to fetch high-quality album artwork (JioSaavn / iTunes fallback)
+async function getAlbumArtwork(albumName, artistName = '') {
+  if (!albumName) return null;
+  try {
+    const q = `${albumName} ${artistName}`.trim();
+    const searchUrl = `https://www.jiosaavn.com/api.php?__call=search.getAlbumResults&q=${encodeURIComponent(q)}&_format=json&_marker=0&n=1&p=1&ctx=web6dot0`;
+    const res = await fetch(searchUrl, {
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" }
+    });
+    const data = await res.json();
+    if (data.results && data.results.length > 0 && data.results[0].image) {
+      return data.results[0].image.replace("150x150", "500x500").replace("50x50", "500x500");
+    }
+  } catch (e) {}
+
+  try {
+    const term = `${albumName} ${artistName}`.trim();
+    const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&entity=album&limit=1`);
+    const data = await res.json();
+    if (data.results && data.results.length > 0 && data.results[0].artworkUrl100) {
+      return data.results[0].artworkUrl100.replace('100x100', '600x600');
+    }
+  } catch (e) {}
+  return null;
+}
+
 // API Routes
 
 // Get artist info with bio
@@ -133,12 +159,43 @@ app.get("/api/search", async (req, res) => {
       duration: track.duration
     })) || [];
     
-    const topAlbums = albumsData.topalbums?.album?.slice(0, 8).map(album => ({
+    let topAlbums = albumsData.topalbums?.album?.slice(0, 8).map(album => ({
       name: album.name,
       playcount: album.playcount,
       url: album.url,
       image: album.image?.[3]?.["#text"] || null
     })) || [];
+
+    // If Last.fm returned few or no albums, fetch authentic albums from JioSaavn
+    if (topAlbums.length < 3) {
+      try {
+        const saavnAlbUrl = `https://www.jiosaavn.com/api.php?__call=search.getAlbumResults&q=${encodeURIComponent(artist.name)}&_format=json&_marker=0&n=8&p=1&ctx=web6dot0`;
+        const saavnAlbRes = await fetch(saavnAlbUrl, {
+          headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" }
+        });
+        const saavnAlbData = await saavnAlbRes.json();
+        if (saavnAlbData.results && saavnAlbData.results.length > 0) {
+          topAlbums = saavnAlbData.results.map(alb => ({
+            name: alb.title,
+            playcount: '',
+            url: alb.perma_url,
+            image: alb.image ? alb.image.replace("150x150", "500x500").replace("50x50", "500x500") : null
+          }));
+        }
+      } catch (albErr) {
+        console.warn("JioSaavn album fallback error:", albErr.message);
+      }
+    } else {
+      // Resolve any missing/placeholder images for Last.fm albums in parallel
+      topAlbums = await Promise.all(topAlbums.map(async (alb) => {
+        const isPl = !alb.image || alb.image.includes("2a96") || alb.image.includes("default") || alb.image === "";
+        if (isPl) {
+          const freshImg = await getAlbumArtwork(alb.name, artist.name);
+          if (freshImg) alb.image = freshImg;
+        }
+        return alb;
+      }));
+    }
 
     // Final Image Decision (Last.fm vs iTunes fallback)
     let finalImage = artistInfo?.image?.[3]?.["#text"];
@@ -175,19 +232,103 @@ app.get("/api/search", async (req, res) => {
   }
 });
 
-// Search Track
+// Search Track with JioSaavn (authentic HD 500x500 movie/album artwork & metadata)
 app.get("/api/track/search", async (req, res) => {
   try {
     const track = req.query.q || "Tum Hi Ho";
     const artist = req.query.artist || "";
-    console.log(`Searching for track: ${track}`);
-    const url = `https://ws.audioscrobbler.com/2.0/?method=track.search&track=${encodeURIComponent(track)}&api_key=${LASTFM_API_KEY}&format=json${artist ? `&artist=${encodeURIComponent(artist)}` : ''}`;
-    const response = await fetch(url);
+    const query = `${track} ${artist}`.trim();
+    console.log(`🎶 Searching for track: ${query}`);
+
+    const searchUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&cc=in&includeMetaTags=1&p=1&n=30&q=${encodeURIComponent(query)}`;
+    const response = await fetch(searchUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      }
+    });
     const data = await response.json();
-    const tracks = data.results?.trackmatches?.track || [];
-    res.json({ success: true, results: tracks });
+    const raw = data.results || [];
+    const cleanQ = track.replace(/\(.*?\)/g, "").replace(/\[.*?\]/g, "").replace(/['"]/g, "").trim().toLowerCase();
+
+    // Find maximum play count among title matches
+    let maxPlays = 0;
+    for (const s of raw) {
+      const t = (s.song || s.title || '').replace(/\(.*?\)/g, "").replace(/\[.*?\]/g, "").replace(/['"]/g, "").trim().toLowerCase();
+      if (t === cleanQ || t.startsWith(cleanQ)) {
+        const p = parseInt(s.play_count || 0);
+        if (p > maxPlays) maxPlays = p;
+      }
+    }
+
+    // Sort: Title match first, top-tier plays with earliest year (original film album), then play count
+    raw.sort((a, b) => {
+      const tA = (a.song || a.title || '').replace(/\(.*?\)/g, "").replace(/\[.*?\]/g, "").replace(/['"]/g, "").trim().toLowerCase();
+      const tB = (b.song || b.title || '').replace(/\(.*?\)/g, "").replace(/\[.*?\]/g, "").replace(/['"]/g, "").trim().toLowerCase();
+      const exactA = tA === cleanQ || tA.startsWith(cleanQ);
+      const exactB = tB === cleanQ || tB.startsWith(cleanQ);
+
+      if (exactA && !exactB) return -1;
+      if (!exactA && exactB) return 1;
+
+      const pA = parseInt(a.play_count || 0);
+      const pB = parseInt(b.play_count || 0);
+
+      const topTierA = maxPlays > 100000 && pA >= maxPlays * 0.5;
+      const topTierB = maxPlays > 100000 && pB >= maxPlays * 0.5;
+
+      if (topTierA && topTierB) {
+        const yrA = parseInt(a.year || (a.more_info && a.more_info.year) || 2099);
+        const yrB = parseInt(b.year || (b.more_info && b.more_info.year) || 2099);
+        if (yrA !== yrB) return yrA - yrB;
+      }
+
+      if (topTierA && !topTierB) return -1;
+      if (!topTierA && topTierB) return 1;
+
+      return pB - pA;
+    });
+
+    // Deduplicate songs by title + album to avoid repetitive compilation rows
+    const seen = new Set();
+    const results = [];
+    for (const s of raw) {
+      const title = (s.song || s.title || '').trim();
+      const artistName = (s.singers || s.primary_artists || s.music || '').trim();
+      const albumName = (s.album || '').trim();
+      const key = (title + '---' + albumName).toLowerCase();
+
+      if (!seen.has(key)) {
+        seen.add(key);
+        results.push({
+          name: title,
+          artist: artistName || artist || 'Unknown Artist',
+          album: albumName,
+          year: s.year || (s.more_info && s.more_info.year) || '',
+          duration: s.duration,
+          image: s.image ? s.image.replace("150x150", "500x500").replace("50x50", "500x500") : null,
+          has_lyrics: s.has_lyrics === 'true',
+          id: s.id
+        });
+      }
+    }
+
+    // Fallback to Last.fm if JioSaavn returned 0 results
+    if (results.length === 0) {
+      const lfmUrl = `https://ws.audioscrobbler.com/2.0/?method=track.search&track=${encodeURIComponent(track)}&api_key=${LASTFM_API_KEY}&format=json${artist ? `&artist=${encodeURIComponent(artist)}` : ''}`;
+      const lfmRes = await fetch(lfmUrl);
+      const lfmData = await lfmRes.json();
+      const lfmTracks = (lfmData.results?.trackmatches?.track || []).map(t => ({
+        name: t.name,
+        artist: t.artist,
+        listeners: t.listeners,
+        image: null
+      }));
+      return res.json({ success: true, results: lfmTracks });
+    }
+
+    res.json({ success: true, results });
   } catch (err) {
-    console.error("Error:", err.message);
+    console.error("Track search error:", err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -275,24 +416,43 @@ app.get("/api/saavn/search", async (req, res) => {
     const playable = searchData.results.filter(s => !!(s.encrypted_media_url || (s.more_info && s.more_info.encrypted_media_url)));
     const cleanTitle = rawQuery.replace(/\(.*?\)/g, "").replace(/\[.*?\]/g, "").replace(/['"]/g, "").trim().toLowerCase();
 
-    // Prioritize songs whose title matches, then sort by EARLIEST release year
-    // (Original movie soundtracks were released first, whereas marketing compilations come years later)
+    // Find maximum play count among matching title songs
+    let maxPlays = 0;
+    for (const s of playable) {
+      const songTitle = (s.song || s.title || '').replace(/\(.*?\)/g, "").replace(/\[.*?\]/g, "").replace(/['"]/g, "").trim().toLowerCase();
+      if (songTitle === cleanTitle || songTitle.startsWith(cleanTitle)) {
+        const p = parseInt(s.play_count || 0);
+        if (p > maxPlays) maxPlays = p;
+      }
+    }
+
+    // Prioritize songs whose title matches, top-tier plays with EARLIEST release year (original film soundtrack)
     playable.sort((a, b) => {
-      const songA = (a.song || a.title || '').trim().toLowerCase();
-      const songB = (b.song || b.title || '').trim().toLowerCase();
+      const songA = (a.song || a.title || '').replace(/\(.*?\)/g, "").replace(/\[.*?\]/g, "").replace(/['"]/g, "").trim().toLowerCase();
+      const songB = (b.song || b.title || '').replace(/\(.*?\)/g, "").replace(/\[.*?\]/g, "").replace(/['"]/g, "").trim().toLowerCase();
       const exactA = songA === cleanTitle || cleanTitle.startsWith(songA);
       const exactB = songB === cleanTitle || cleanTitle.startsWith(songB);
 
       if (exactA && !exactB) return -1;
       if (!exactA && exactB) return 1;
 
-      // Earliest year wins (original film album)
-      const yrA = parseInt(a.year || (a.more_info && a.more_info.year) || 2099);
-      const yrB = parseInt(b.year || (b.more_info && b.more_info.year) || 2099);
-      if (yrA !== yrB) return yrA - yrB;
+      const pA = parseInt(a.play_count || 0);
+      const pB = parseInt(b.play_count || 0);
 
-      // Fallback: highest play count
-      return parseInt(b.play_count || 0) - parseInt(a.play_count || 0);
+      // Top-tier plays: songs within 50% of the maximum hit count
+      const topTierA = maxPlays > 100000 && pA >= maxPlays * 0.5;
+      const topTierB = maxPlays > 100000 && pB >= maxPlays * 0.5;
+
+      if (topTierA && topTierB) {
+        const yrA = parseInt(a.year || (a.more_info && a.more_info.year) || 2099);
+        const yrB = parseInt(b.year || (b.more_info && b.more_info.year) || 2099);
+        if (yrA !== yrB) return yrA - yrB;
+      }
+
+      if (topTierA && !topTierB) return -1;
+      if (!topTierA && topTierB) return 1;
+
+      return pB - pA;
     });
 
     const song = playable.length > 0 ? playable[0] : searchData.results[0];
@@ -576,7 +736,21 @@ app.get("/api/saavn/album/search", async (req, res) => {
       headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" }
     });
     const data = await response.json();
-    const results = (data.results || []).map(alb => ({
+    const rawAlbums = data.results || [];
+    const cleanQ = q.trim().toLowerCase();
+
+    // Prioritize exact title matches, maintaining JioSaavn's popularity rank
+    rawAlbums.sort((a, b) => {
+      const tA = (a.title || '').trim().toLowerCase();
+      const tB = (b.title || '').trim().toLowerCase();
+      const exactA = tA === cleanQ;
+      const exactB = tB === cleanQ;
+      if (exactA && !exactB) return -1;
+      if (!exactA && exactB) return 1;
+      return 0;
+    });
+
+    const results = rawAlbums.map(alb => ({
       id: alb.albumid,
       title: alb.title,
       artist: typeof alb.artist === 'string' ? alb.artist : (alb.primary_artists || alb.music || 'Various Artists'),

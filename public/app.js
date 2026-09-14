@@ -451,7 +451,11 @@ function displayArtistResults(data) {
 
 function displayTrackResults(tracks) {
     const resultsDiv = document.getElementById('results');
-    currentPlaylist = tracks.slice(0, 30).map(t => ({ track: t.name, artist: t.artist }));
+    currentPlaylist = tracks.slice(0, 30).map(t => ({ 
+        track: t.name, 
+        artist: t.artist,
+        image: t.image || ''
+    }));
     
     let html = `
         <div class="music-section">
@@ -464,18 +468,21 @@ function displayTrackResults(tracks) {
     tracks.slice(0, 30).forEach((track, index) => {
         const query = `${track.name} ${track.artist}`;
         const liked = isTrackLiked(track.name, track.artist);
+        const trackImg = track.image || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60';
         html += `
             <div class="track-item">
+                <div class="track-thumbnail-wrap" onclick="playTrackByIndex(${index})">
+                    <img src="${trackImg}" class="track-thumbnail-img" alt="${escapeHtml(track.name)}" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60';">
+                </div>
                 <div class="track-info" onclick="playTrackByIndex(${index})">
                     <div class="track-name">${index + 1}. ${escapeHtml(track.name)}</div>
                     <div class="track-stats">
-                        <i class="fas fa-microphone"></i> ${escapeHtml(track.artist)} | 
-                        <i class="fas fa-users"></i> ${formatNumber(track.listeners)} listeners
+                        <i class="fas fa-microphone"></i> ${escapeHtml(track.artist)} ${track.album ? ` • <i class="fas fa-compact-disc"></i> ${escapeHtml(track.album)}` : ''} ${track.year ? `(${track.year})` : ''}
                     </div>
                 </div>
                 <div class="track-actions">
-                    <i class="${liked ? 'fas' : 'far'} fa-heart" onclick="toggleTrackLike('${escapeHtml(track.name)}', '${escapeHtml(track.artist)}'); event.stopPropagation();" style="color:${liked ? 'var(--neon-pink)' : 'var(--text-muted)'}; cursor:pointer; font-size:17px;" title="Like Track"></i>
-                    <i class="fas fa-plus" onclick="openAddToPlaylistModal('${escapeHtml(track.name)}', '${escapeHtml(track.artist)}'); event.stopPropagation();" style="color:var(--text-muted); cursor:pointer; font-size:15px;" title="Add to Playlist"></i>
+                    <i class="${liked ? 'fas' : 'far'} fa-heart" onclick="toggleTrackLike('${escapeHtml(track.name)}', '${escapeHtml(track.artist)}', '${escapeHtml(track.image || '')}', this); event.stopPropagation();" style="color:${liked ? 'var(--neon-pink)' : 'var(--text-muted)'}; cursor:pointer; font-size:17px;" title="Like Track"></i>
+                    <i class="fas fa-plus" onclick="openAddToPlaylistModal('${escapeHtml(track.name)}', '${escapeHtml(track.artist)}', '${escapeHtml(track.image || '')}'); event.stopPropagation();" style="color:var(--text-muted); cursor:pointer; font-size:15px;" title="Add to Playlist"></i>
                     <a href="https://www.youtube.com/results?search_query=${encodeURIComponent(query)}" target="_blank" class="yt-link" title="Watch on YouTube">
                         <i class="fab fa-youtube"></i>
                     </a>
@@ -940,9 +947,13 @@ function renderCollectionTracklist(songs, isCustom = false, customPlId = '') {
         const artist = s.artist || s.singers || '';
         const dur = s.duration ? formatTime(parseInt(s.duration)) : '';
         const liked = isTrackLiked(title, artist);
+        const songImg = s.image || (activeCollection ? activeCollection.image : '') || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60';
 
         html += `
             <div class="track-item" style="padding:10px 15px;">
+                <div class="track-thumbnail-wrap" onclick="playCollectionTrackByIndex(${idx})">
+                    <img src="${songImg}" class="track-thumbnail-img" alt="${escapeHtml(title)}" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60';">
+                </div>
                 <div class="track-info" onclick="playCollectionTrackByIndex(${idx})">
                     <div class="track-name" style="font-size:14px;">${idx + 1}. ${escapeHtml(title)}</div>
                     <div class="track-stats" style="font-size:12px;">
@@ -950,11 +961,11 @@ function renderCollectionTracklist(songs, isCustom = false, customPlId = '') {
                     </div>
                 </div>
                 <div class="track-actions" style="gap:10px;">
-                    <i class="${liked ? 'fas' : 'far'} fa-heart" onclick="toggleTrackLike('${escapeHtml(title)}', '${escapeHtml(artist)}', '', this); event.stopPropagation();" style="color:${liked ? 'var(--neon-pink)' : 'var(--text-muted)'}; cursor:pointer; font-size:16px;" title="${liked ? 'Unlike Song' : 'Like Song'}"></i>
+                    <i class="${liked ? 'fas' : 'far'} fa-heart" onclick="toggleTrackLike('${escapeHtml(title)}', '${escapeHtml(artist)}', '${escapeHtml(songImg)}', this); event.stopPropagation();" style="color:${liked ? 'var(--neon-pink)' : 'var(--text-muted)'}; cursor:pointer; font-size:16px;" title="${liked ? 'Unlike Song' : 'Like Song'}"></i>
                     ${isCustom ? `
                         <i class="fas fa-trash" onclick="removeTrackFromCustomPlaylist('${customPlId}', ${idx}); event.stopPropagation();" style="color:var(--text-muted); cursor:pointer; font-size:14px;" title="Remove from Playlist" onmouseover="this.style.color='#ff0844'" onmouseout="this.style.color='var(--text-muted)'"></i>
                     ` : `
-                        <i class="fas fa-plus" onclick="openAddToPlaylistModal('${escapeHtml(title)}', '${escapeHtml(artist)}'); event.stopPropagation();" style="color:var(--text-muted); cursor:pointer; font-size:14px;" title="Add to Playlist"></i>
+                        <i class="fas fa-plus" onclick="openAddToPlaylistModal('${escapeHtml(title)}', '${escapeHtml(artist)}', '${escapeHtml(songImg)}'); event.stopPropagation();" style="color:var(--text-muted); cursor:pointer; font-size:14px;" title="Add to Playlist"></i>
                     `}
                     <div class="track-play" onclick="playCollectionTrackByIndex(${idx})" style="width:36px; height:36px; font-size:13px;">
                         <i class="fas fa-play"></i>
@@ -970,10 +981,11 @@ function renderCollectionTracklist(songs, isCustom = false, customPlId = '') {
 function playCollectionTrackByIndex(index) {
     if (!activeCollection || !activeCollection.songs || !activeCollection.songs[index]) return;
     
-    // Set active queue to collection songs
+    // Set active queue to collection songs with preserved HD images
     currentPlaylist = activeCollection.songs.map(s => ({
         track: s.title || s.song,
-        artist: s.artist || s.singers || ''
+        artist: s.artist || s.singers || '',
+        image: s.image || (activeCollection ? activeCollection.image : '') || ''
     }));
 
     closeCollectionModal();
@@ -993,7 +1005,8 @@ function playCurrentCollection(isShuffle = false) {
 
     currentPlaylist = songs.map(s => ({
         track: s.title || s.song,
-        artist: s.artist || s.singers || ''
+        artist: s.artist || s.singers || '',
+        image: s.image || (activeCollection ? activeCollection.image : '') || ''
     }));
 
     closeCollectionModal();
@@ -1392,13 +1405,17 @@ function renderLikedSongs() {
         return;
     }
 
-    currentPlaylist = tracks.map(t => ({ track: t.track, artist: t.artist }));
+    currentPlaylist = tracks.map(t => ({ track: t.track, artist: t.artist, image: t.image || '' }));
 
     let html = '';
     tracks.forEach((item, index) => {
         const query = `${item.track} ${item.artist}`;
+        const songImg = item.image || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60';
         html += `
             <div class="track-item">
+                <div class="track-thumbnail-wrap" onclick="playTrackByIndex(${index})">
+                    <img src="${songImg}" class="track-thumbnail-img" alt="${escapeHtml(item.track)}" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60';">
+                </div>
                 <div class="track-info" onclick="playTrackByIndex(${index})">
                     <div class="track-name">${index + 1}. ${escapeHtml(item.track)}</div>
                     <div class="track-stats">
@@ -1406,8 +1423,8 @@ function renderLikedSongs() {
                     </div>
                 </div>
                 <div class="track-actions">
-                    <i class="fas fa-heart" onclick="toggleTrackLike('${escapeHtml(item.track)}', '${escapeHtml(item.artist)}'); event.stopPropagation();" style="color:var(--neon-pink); cursor:pointer; font-size:18px;" title="Remove from Liked"></i>
-                    <i class="fas fa-plus" onclick="openAddToPlaylistModal('${escapeHtml(item.track)}', '${escapeHtml(item.artist)}'); event.stopPropagation();" style="color:var(--text-muted); cursor:pointer; font-size:15px;" title="Add to Playlist"></i>
+                    <i class="fas fa-heart" onclick="toggleTrackLike('${escapeHtml(item.track)}', '${escapeHtml(item.artist)}', '${escapeHtml(item.image || '')}'); event.stopPropagation();" style="color:var(--neon-pink); cursor:pointer; font-size:18px;" title="Remove from Liked"></i>
+                    <i class="fas fa-plus" onclick="openAddToPlaylistModal('${escapeHtml(item.track)}', '${escapeHtml(item.artist)}', '${escapeHtml(item.image || '')}'); event.stopPropagation();" style="color:var(--text-muted); cursor:pointer; font-size:15px;" title="Add to Playlist"></i>
                     <a href="https://www.youtube.com/results?search_query=${encodeURIComponent(query)}" target="_blank" class="yt-link" title="Watch on YouTube">
                         <i class="fab fa-youtube"></i>
                     </a>
@@ -1904,7 +1921,7 @@ function toggleMute() {
 function playTrackByIndex(index) {
     if (index >= 0 && index < currentPlaylist.length) {
         const item = currentPlaylist[index];
-        playMusic(item.track, item.artist, index);
+        playMusic(item.track, item.artist, index, item.image || '');
     }
 }
 
@@ -1995,7 +2012,7 @@ function playPrevious() {
     playTrackByIndex(prevIndex);
 }
 
-async function playMusic(track, artist, index = -1) {
+async function playMusic(track, artist, index = -1, preloadedImage = '') {
     currentTrackIndex = index;
     const player = document.getElementById('playerContainer');
     const titleElem = document.getElementById('playerTitle');
@@ -2006,15 +2023,23 @@ async function playMusic(track, artist, index = -1) {
     const eq = document.getElementById('equalizerWave');
     const downloadBtn = document.getElementById('downloadBtn');
     
-    currentSongMeta = { track, artist, image: '', id: '', hasLyrics: false, streamUrl: '' };
+    currentSongMeta = { track, artist, image: preloadedImage || '', id: '', hasLyrics: false, streamUrl: '' };
     updatePlayerLikeBtn();
     
-    titleElem.innerText = "Finding Song...";
-    artistElem.innerText = artist || track;
+    titleElem.innerText = track || "Finding Song...";
+    artistElem.innerText = artist || "";
     player.style.display = 'block';
     
-    thumbElem.style.display = 'none';
-    iconElem.style.display = 'block';
+    if (preloadedImage) {
+        thumbElem.src = preloadedImage;
+        thumbElem.style.display = 'block';
+        iconElem.style.display = 'none';
+        applyDynamicAmbientGlow(preloadedImage, track, artist);
+    } else {
+        thumbElem.style.display = 'none';
+        iconElem.style.display = 'block';
+    }
+
     if (playBtn) playBtn.className = 'fas fa-pause';
     if (eq) eq.classList.remove('paused');
     if (downloadBtn) downloadBtn.style.display = 'none';
@@ -2047,16 +2072,19 @@ async function playMusic(track, artist, index = -1) {
             titleElem.innerText = saavnData.title || track;
             artistElem.innerText = saavnData.artist || artist || "";
             
+            // Prefer preloaded album/collection image if supplied, else use saavnData.image
+            const chosenImage = preloadedImage || saavnData.image || '';
+            
             currentSongMeta.id = saavnData.id || '';
             currentSongMeta.hasLyrics = !!saavnData.has_lyrics;
-            currentSongMeta.image = saavnData.image || '';
+            currentSongMeta.image = chosenImage;
             currentSongMeta.streamUrl = saavnData.streamUrl;
             
-            if (saavnData.image) {
-                thumbElem.src = saavnData.image;
+            if (chosenImage) {
+                thumbElem.src = chosenImage;
                 thumbElem.style.display = 'block';
                 iconElem.style.display = 'none';
-                applyDynamicAmbientGlow(saavnData.image, saavnData.title || track, saavnData.artist || artist);
+                applyDynamicAmbientGlow(chosenImage, saavnData.title || track, saavnData.artist || artist);
             } else {
                 applyDynamicAmbientGlow(null, saavnData.title || track, saavnData.artist || artist);
             }
@@ -2074,7 +2102,7 @@ async function playMusic(track, artist, index = -1) {
                 console.warn("Autoplay blocked, user interaction required:", err);
             });
             
-            updateMediaSession(saavnData.title || track, saavnData.artist || artist || "", saavnData.image || '');
+            updateMediaSession(saavnData.title || track, saavnData.artist || artist || "", chosenImage);
             updatePlayerLikeBtn();
             if (window.innerWidth < 768) player.scrollIntoView({ behavior: 'smooth' });
             return;
@@ -2092,14 +2120,15 @@ async function playMusic(track, artist, index = -1) {
             titleElem.innerText = track;
             artistElem.innerText = artist || "";
             
-            currentSongMeta.image = `https://img.youtube.com/vi/${data.videoId}/hqdefault.jpg`;
-            thumbElem.src = currentSongMeta.image;
+            const ytImg = preloadedImage || `https://img.youtube.com/vi/${data.videoId}/hqdefault.jpg`;
+            currentSongMeta.image = ytImg;
+            thumbElem.src = ytImg;
             thumbElem.style.display = 'block';
             iconElem.style.display = 'none';
-            applyDynamicAmbientGlow(currentSongMeta.image, track, artist);
+            applyDynamicAmbientGlow(ytImg, track, artist);
             
             isChangingSong = false; // New song loaded via YouTube
-            updateMediaSession(track, artist || "", currentSongMeta.image);
+            updateMediaSession(track, artist || "", ytImg);
             initOrLoadPlayer(data.videoId);
         } else {
             isChangingSong = false;
