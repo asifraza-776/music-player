@@ -937,6 +937,8 @@ body::after {
     width: 46px;
     height: 46px;
     min-width: 46px;
+    max-width: 46px;
+    aspect-ratio: 1 / 1;
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid rgba(0,242,254,0.15);
     border-radius: 10px;
@@ -948,6 +950,15 @@ body::after {
     box-shadow: 0 0 18px rgba(0, 242, 254, 0.15);
     overflow: hidden;
     flex-shrink: 0;
+}
+
+/* Ensure thumbnail image fills perfectly square */
+.now-playing-icon img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    border-radius: 8px;
+    display: block;
 }
 
 .now-playing-info {
@@ -992,29 +1003,29 @@ body::after {
 
 .player-buttons .ctrl-btn {
     cursor: pointer;
-    font-size: 18px;
-    color: rgba(255,255,255,0.75);
+    font-size: 34px;
+    color: rgba(255,255,255,0.85);
     transition: all 0.2s;
     flex-shrink: 0;
 }
 
 .player-buttons .ctrl-btn:hover {
     color: #fff;
-    transform: scale(1.2);
+    transform: scale(1.15);
 }
 
 .player-buttons .main-play-btn {
     cursor: pointer;
-    font-size: 40px;
+    font-size: 34px;
     color: var(--neon-cyan);
     transition: all 0.2s;
     flex-shrink: 0;
-    filter: drop-shadow(0 0 8px rgba(0,242,254,0.4));
+    filter: drop-shadow(0 0 10px rgba(0,242,254,0.5));
 }
 
 .player-buttons .main-play-btn:hover {
-    transform: scale(1.1);
-    filter: drop-shadow(0 0 16px rgba(0, 242, 254, 0.7));
+    transform: scale(1.15);
+    filter: drop-shadow(0 0 20px rgba(0, 242, 254, 0.8));
 }
 
 .player-right {
@@ -2601,7 +2612,7 @@ input[type="range"].custom-slider::-moz-range-thumb {
     .player-actions-cluster {
         display: flex !important;
         align-items: center !important;
-        gap: 6px !important;
+        gap: 10px !important;
         flex-shrink: 0 !important;
         flex: none !important;
     }
@@ -2610,27 +2621,30 @@ input[type="range"].custom-slider::-moz-range-thumb {
     .player-buttons {
         display: flex !important;
         align-items: center !important;
-        gap: 8px !important;
+        gap: 14px !important;
         flex-shrink: 0 !important;
+        padding-right: 10px !important;
+        border-right: 1px solid rgba(255,255,255,0.12) !important; /* Separator line */
+        margin-right: 4px !important;
     }
 
     .player-buttons .ctrl-btn {
-        font-size: 16px !important;
-        color: #fff !important;
-        padding: 2px !important;
+        font-size: 22px !important;
+        color: rgba(255,255,255,0.85) !important;
+        padding: 0 !important;
     }
 
     .player-buttons .main-play-btn {
-        font-size: 34px !important; /* Prominent, big, and easy to tap */
+        font-size: 22px !important;
         color: var(--neon-cyan) !important;
-        filter: drop-shadow(0 0 8px rgba(0, 242, 254, 0.4)) !important;
+        filter: drop-shadow(0 0 6px rgba(0, 242, 254, 0.5)) !important;
     }
 
-    /* Action buttons: Lyrics, Download, Close directly beside */
+    /* Action buttons: Lyrics, Download - clearly separated from playback */
     .player-right {
         display: flex !important;
         align-items: center !important;
-        gap: 4px !important;
+        gap: 8px !important;
         flex-shrink: 0 !important;
         width: auto !important;
         min-width: 0 !important;
@@ -2641,17 +2655,32 @@ input[type="range"].custom-slider::-moz-range-thumb {
     }
 
     .player-action-btn {
-        width: 30px !important;
-        height: 30px !important;
-        font-size: 11.5px !important;
+        width: 32px !important;
+        height: 32px !important;
+        font-size: 13px !important;
         flex-shrink: 0 !important;
+        border: 1.5px solid rgba(255,255,255,0.15) !important;
+    }
+
+    /* Download button — clearly distinct cyan filled */
+    .download-glow-btn {
+        background: linear-gradient(135deg, #00f2fe, #4facfe) !important;
+        border: none !important;
+        box-shadow: 0 0 10px rgba(0,242,254,0.4) !important;
+    }
+
+    /* Lyrics button — distinct outline cyan */
+    .lyrics-glow-btn {
+        border-color: rgba(0,242,254,0.4) !important;
+        color: var(--neon-cyan) !important;
     }
 
     .close-player {
-        font-size: 14px !important;
+        font-size: 13px !important;
         padding: 2px !important;
-        margin-left: 0 !important;
+        margin-left: 2px !important;
         flex-shrink: 0 !important;
+        color: rgba(255,255,255,0.4) !important;
     }
 
     /* Modals as Mobile Bottom-Sheets */

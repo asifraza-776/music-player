@@ -1566,7 +1566,7 @@ function updateMediaSession(title, artist, artworkUrl) {
 
 audioPlayer.addEventListener('play', () => {
     const btn = document.getElementById('playPauseBtn');
-    if (btn) btn.className = 'fas fa-pause-circle';
+    if (btn) btn.className = 'fas fa-pause';
     const eq = document.getElementById('equalizerWave');
     if (eq) eq.classList.remove('paused');
     if (currentSongMeta.track) document.title = `▶ ${currentSongMeta.track} - ${currentSongMeta.artist || 'MelodySphere'}`;
@@ -1575,7 +1575,7 @@ audioPlayer.addEventListener('play', () => {
 
 audioPlayer.addEventListener('pause', () => {
     const btn = document.getElementById('playPauseBtn');
-    if (btn) btn.className = 'fas fa-play-circle';
+    if (btn) btn.className = 'fas fa-play';
     const eq = document.getElementById('equalizerWave');
     if (eq) eq.classList.add('paused');
     if (currentSongMeta.track) document.title = `⏸ ${currentSongMeta.track} - ${currentSongMeta.artist || 'MelodySphere'}`;
@@ -1619,7 +1619,7 @@ audioPlayer.addEventListener('error', async (e) => {
 
     // Retry failed → skip to next only if there are more songs
     titleElem.innerText = "Skipping...";
-    if (playBtn) playBtn.className = 'fas fa-play-circle';
+    if (playBtn) playBtn.className = 'fas fa-play';
     if (eq) eq.classList.add('paused');
     setTimeout(() => {
         if (!isChangingSong && currentTrackIndex >= 0 && currentPlaylist.length > 1) playNext();
@@ -1702,20 +1702,20 @@ function onPlayerStateChange(event) {
     const btn = document.getElementById('playPauseBtn');
     const eq = document.getElementById('equalizerWave');
     if (event.data === 1) {
-        btn.className = 'fas fa-pause-circle';
+        btn.className = 'fas fa-pause';
         if (eq) eq.classList.remove('paused');
         startProgressBar();
     } else if (event.data === 2) {
-        btn.className = 'fas fa-play-circle';
+        btn.className = 'fas fa-play';
         if (eq) eq.classList.add('paused');
         stopProgressBar();
     } else if (event.data === 0) {
-        btn.className = 'fas fa-play-circle';
+        btn.className = 'fas fa-play';
         if (eq) eq.classList.add('paused');
         stopProgressBar();
         playNext();
     } else if (event.data === 3) {
-        btn.className = 'fas fa-pause-circle';
+        btn.className = 'fas fa-pause';
     }
 }
 
@@ -1724,11 +1724,11 @@ function togglePlay() {
     if (activePlayerType === 'saavn') {
         if (audioPlayer.paused) {
             audioPlayer.play().catch(e => console.error(e));
-            document.getElementById('playPauseBtn').className = 'fas fa-pause-circle';
+            document.getElementById('playPauseBtn').className = 'fas fa-pause';
             if (eq) eq.classList.remove('paused');
         } else {
             audioPlayer.pause();
-            document.getElementById('playPauseBtn').className = 'fas fa-play-circle';
+            document.getElementById('playPauseBtn').className = 'fas fa-play';
             if (eq) eq.classList.add('paused');
         }
         return;
@@ -1739,11 +1739,11 @@ function togglePlay() {
         const state = typeof ytPlayer.getPlayerState === 'function' ? ytPlayer.getPlayerState() : -1;
         if (state === 1 || state === 3) {
             if (typeof ytPlayer.pauseVideo === 'function') ytPlayer.pauseVideo();
-            document.getElementById('playPauseBtn').className = 'fas fa-play-circle';
+            document.getElementById('playPauseBtn').className = 'fas fa-play';
             if (eq) eq.classList.add('paused');
         } else {
             if (typeof ytPlayer.playVideo === 'function') ytPlayer.playVideo();
-            document.getElementById('playPauseBtn').className = 'fas fa-pause-circle';
+            document.getElementById('playPauseBtn').className = 'fas fa-pause';
             if (eq) eq.classList.remove('paused');
         }
     } catch (e) {}
@@ -1910,7 +1910,7 @@ async function playMusic(track, artist, index = -1) {
     
     thumbElem.style.display = 'none';
     iconElem.style.display = 'block';
-    if (playBtn) playBtn.className = 'fas fa-pause-circle';
+    if (playBtn) playBtn.className = 'fas fa-pause';
     if (eq) eq.classList.remove('paused');
     if (downloadBtn) downloadBtn.style.display = 'none';
     
@@ -1995,13 +1995,13 @@ async function playMusic(track, artist, index = -1) {
         } else {
             isChangingSong = false;
             titleElem.innerText = "Track not found";
-            if (playBtn) playBtn.className = 'fas fa-play-circle';
+            if (playBtn) playBtn.className = 'fas fa-play';
             if (eq) eq.classList.add('paused');
         }
     } catch (err) {
         isChangingSong = false;
         titleElem.innerText = "Connection Error";
-        if (playBtn) playBtn.className = 'fas fa-play-circle';
+        if (playBtn) playBtn.className = 'fas fa-play';
         if (eq) eq.classList.add('paused');
     }
 
