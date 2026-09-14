@@ -711,6 +711,44 @@ body::after {
     font-weight: 600;
     margin-bottom: 6px;
     color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.track-item.track-item-playing {
+    background: rgba(0, 242, 254, 0.08) !important;
+    border-color: rgba(0, 242, 254, 0.45) !important;
+    box-shadow: 0 4px 20px rgba(0, 242, 254, 0.18) !important;
+}
+
+.track-item.track-item-playing .track-name {
+    color: var(--neon-cyan) !important;
+    font-weight: 700 !important;
+}
+
+.track-item.track-item-playing .track-play {
+    background: var(--neon-cyan) !important;
+    color: #000 !important;
+    border-color: transparent !important;
+    box-shadow: 0 0 15px rgba(0, 242, 254, 0.6) !important;
+}
+
+.track-name .equalizer-waves {
+    display: inline-flex !important;
+    align-items: flex-end;
+    gap: 2.5px;
+    height: 13px;
+    margin-left: 6px;
+    flex-shrink: 0;
+    vertical-align: middle;
+}
+
+.track-name .equalizer-waves span {
+    width: 3px;
+    background: var(--neon-cyan);
+    border-radius: 2px;
 }
 
 .track-stats {
@@ -2801,8 +2839,12 @@ input[type="range"].custom-slider::-moz-range-thumb {
         margin-top: 1px !important;
     }
 
-    .equalizer-waves {
+    #playerTitle + #equalizerWave {
         display: none !important;
+    }
+
+    .track-name .equalizer-waves {
+        display: inline-flex !important;
     }
 
     .player-quick-actions {

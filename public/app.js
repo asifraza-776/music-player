@@ -934,12 +934,101 @@ function openCustomPlaylist(playlistId) {
     modal.style.display = 'flex';
 }
 
+function isCurrentSongPlaying(trackTitle, trackArtist) {
+    if (!currentSongMeta || !currentSongMeta.track) return false;
+    const current = (currentSongMeta.track || '').toLowerCase().trim();
+    const target = (trackTitle || '').toLowerCase().trim();
+    if (!current || !target) return false;
+    if (current === target) return true;
+    
+    // Clean strings (remove movie names or featured artists)
+    const cleanCurrent = current.replace(/\(from\s+[^)]+\)/gi, '').replace(/\(ft\.[^)]+\)/gi, '').trim();
+    const cleanTarget = target.replace(/\(from\s+[^)]+\)/gi, '').replace(/\(ft\.[^)]+\)/gi, '').trim();
+    if (cleanCurrent && cleanTarget && cleanCurrent === cleanTarget) return true;
+
+    if (cleanTarget.length >= 3 && cleanCurrent.includes(cleanTarget)) return true;
+    if (cleanCurrent.length >= 3 && cleanTarget.includes(cleanCurrent)) return true;
+    
+    return false;
+}
+
+function isAudioActivePlaying() {
+    if (activePlayerType === 'saavn') {
+        return audioPlayer && !audioPlayer.paused;
+    } else if (activePlayerType === 'youtube' && ytPlayer && typeof ytPlayer.getPlayerState === 'function') {
+        return ytPlayer.getPlayerState() === 1;
+    }
+    const playBtn = document.getElementById('playPauseBtn');
+    return playBtn ? playBtn.classList.contains('fa-pause') : false;
+}
+
+function updateCollectionActiveTrackState() {
+    const modal = document.getElementById('collectionModal');
+    if (!modal || modal.style.display === 'none') return;
+    
+    const trackItems = modal.querySelectorAll('.track-item');
+    if (!trackItems || trackItems.length === 0) return;
+
+    const isPlaying = isAudioActivePlaying();
+
+    trackItems.forEach((item) => {
+        const title = item.getAttribute('data-track-title') || '';
+        const artist = item.getAttribute('data-track-artist') || '';
+        const isThis = isCurrentSongPlaying(title, artist);
+
+        const titleContainer = item.querySelector('.track-name');
+        const playBtn = item.querySelector('.track-play');
+        const existingEq = item.querySelector('.equalizer-waves');
+
+        if (isThis) {
+            item.classList.add('track-item-playing');
+            if (titleContainer) {
+                titleContainer.style.color = 'var(--neon-cyan)';
+                titleContainer.style.fontWeight = '700';
+            }
+            if (!existingEq && titleContainer) {
+                const eq = document.createElement('div');
+                eq.className = `equalizer-waves ${isPlaying ? '' : 'paused'}`;
+                eq.style.cssText = 'display:inline-flex; margin-left:6px; height:13px;';
+                eq.title = isPlaying ? 'Playing' : 'Paused';
+                eq.innerHTML = '<span></span><span></span><span></span><span></span>';
+                titleContainer.appendChild(eq);
+            } else if (existingEq) {
+                if (isPlaying) existingEq.classList.remove('paused');
+                else existingEq.classList.add('paused');
+                existingEq.title = isPlaying ? 'Playing' : 'Paused';
+            }
+            if (playBtn) {
+                playBtn.innerHTML = `<i class="fas ${isPlaying ? 'fa-pause' : 'fa-play'}"></i>`;
+                playBtn.style.background = 'var(--neon-cyan)';
+                playBtn.style.color = '#000';
+            }
+        } else {
+            item.classList.remove('track-item-playing');
+            if (titleContainer) {
+                titleContainer.style.color = '';
+                titleContainer.style.fontWeight = '';
+            }
+            if (existingEq) {
+                existingEq.remove();
+            }
+            if (playBtn) {
+                playBtn.innerHTML = '<i class="fas fa-play"></i>';
+                playBtn.style.background = '';
+                playBtn.style.color = '';
+            }
+        }
+    });
+}
+
 function renderCollectionTracklist(songs, isCustom = false, customPlId = '') {
     const listEl = document.getElementById('collectionTracklist');
     if (!songs || songs.length === 0) {
         listEl.innerHTML = `<p style="padding:20px; color:var(--text-muted); text-align:center;">This collection has no songs yet.</p>`;
         return;
     }
+
+    const isAudioPlaying = isAudioActivePlaying();
 
     let html = '';
     songs.forEach((s, idx) => {
@@ -948,14 +1037,22 @@ function renderCollectionTracklist(songs, isCustom = false, customPlId = '') {
         const dur = s.duration ? formatTime(parseInt(s.duration)) : '';
         const liked = isTrackLiked(title, artist);
         const songImg = s.image || (activeCollection ? activeCollection.image : '') || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60';
+        const isThis = isCurrentSongPlaying(title, artist);
 
         html += `
-            <div class="track-item" style="padding:10px 15px;">
+            <div class="track-item ${isThis ? 'track-item-playing' : ''}" style="padding:10px 15px;" data-track-title="${escapeHtml(title)}" data-track-artist="${escapeHtml(artist)}" data-track-idx="${idx}">
                 <div class="track-thumbnail-wrap" onclick="playCollectionTrackByIndex(${idx})">
                     <img src="${songImg}" class="track-thumbnail-img" alt="${escapeHtml(title)}" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60';">
                 </div>
                 <div class="track-info" onclick="playCollectionTrackByIndex(${idx})">
-                    <div class="track-name" style="font-size:14px;">${idx + 1}. ${escapeHtml(title)}</div>
+                    <div class="track-name" style="font-size:14px; display:flex; align-items:center; gap:6px; ${isThis ? 'color:var(--neon-cyan); font-weight:700;' : ''}">
+                        <span>${idx + 1}. ${escapeHtml(title)}</span>
+                        ${isThis ? `
+                            <div class="equalizer-waves ${isAudioPlaying ? '' : 'paused'}" style="display:inline-flex; margin-left:6px; height:13px;" title="${isAudioPlaying ? 'Playing' : 'Paused'}">
+                                <span></span><span></span><span></span><span></span>
+                            </div>
+                        ` : ''}
+                    </div>
                     <div class="track-stats" style="font-size:12px;">
                         <i class="fas fa-microphone"></i> ${escapeHtml(artist)} ${dur ? `• ${dur}` : ''}
                     </div>
@@ -967,8 +1064,8 @@ function renderCollectionTracklist(songs, isCustom = false, customPlId = '') {
                     ` : `
                         <i class="fas fa-plus" onclick="openAddToPlaylistModal('${escapeHtml(title)}', '${escapeHtml(artist)}', '${escapeHtml(songImg)}'); event.stopPropagation();" style="color:var(--text-muted); cursor:pointer; font-size:14px;" title="Add to Playlist"></i>
                     `}
-                    <div class="track-play" onclick="playCollectionTrackByIndex(${idx})" style="width:36px; height:36px; font-size:13px;">
-                        <i class="fas fa-play"></i>
+                    <div class="track-play" onclick="playCollectionTrackByIndex(${idx})" style="width:36px; height:36px; font-size:13px; ${isThis ? 'background:var(--neon-cyan); color:#000;' : ''}">
+                        <i class="fas ${isThis && isAudioPlaying ? 'fa-pause' : 'fa-play'}"></i>
                     </div>
                 </div>
             </div>
@@ -981,6 +1078,17 @@ function renderCollectionTracklist(songs, isCustom = false, customPlId = '') {
 function playCollectionTrackByIndex(index) {
     if (!activeCollection || !activeCollection.songs || !activeCollection.songs[index]) return;
     
+    const targetSong = activeCollection.songs[index];
+    const targetTitle = targetSong.title || targetSong.song;
+    const targetArtist = targetSong.artist || targetSong.singers || '';
+
+    // If clicking the track that is ALREADY playing, toggle play/pause!
+    if (isCurrentSongPlaying(targetTitle, targetArtist)) {
+        togglePlay();
+        updateCollectionActiveTrackState();
+        return;
+    }
+
     // Set active queue to collection songs with preserved HD images
     currentPlaylist = activeCollection.songs.map(s => ({
         track: s.title || s.song,
@@ -988,8 +1096,8 @@ function playCollectionTrackByIndex(index) {
         image: s.image || (activeCollection ? activeCollection.image : '') || ''
     }));
 
-    closeCollectionModal();
     playTrackByIndex(index);
+    updateCollectionActiveTrackState();
 }
 
 function playCurrentCollection(shuffleMode = false) {
@@ -1636,6 +1744,7 @@ audioPlayer.addEventListener('play', () => {
     if (eq) eq.classList.remove('paused');
     if (currentSongMeta.track) document.title = `▶ ${currentSongMeta.track} - ${currentSongMeta.artist || 'MelodySphere'}`;
     if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
+    updateCollectionActiveTrackState();
 });
 
 audioPlayer.addEventListener('pause', () => {
@@ -1645,6 +1754,7 @@ audioPlayer.addEventListener('pause', () => {
     if (eq) eq.classList.add('paused');
     if (currentSongMeta.track) document.title = `⏸ ${currentSongMeta.track} - ${currentSongMeta.artist || 'MelodySphere'}`;
     if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
+    updateCollectionActiveTrackState();
 });
 
 audioPlayer.addEventListener('ended', () => {
@@ -1774,14 +1884,17 @@ function onPlayerStateChange(event) {
         btn.className = 'fas fa-pause';
         if (eq) eq.classList.remove('paused');
         startProgressBar();
+        updateCollectionActiveTrackState();
     } else if (event.data === 2) {
         btn.className = 'fas fa-play';
         if (eq) eq.classList.add('paused');
         stopProgressBar();
+        updateCollectionActiveTrackState();
     } else if (event.data === 0) {
         btn.className = 'fas fa-play';
         if (eq) eq.classList.add('paused');
         stopProgressBar();
+        updateCollectionActiveTrackState();
         if (sleepTimerMode === 'end-of-song') {
             finishSleepTimer();
             return;
@@ -1804,6 +1917,7 @@ function togglePlay() {
             document.getElementById('playPauseBtn').className = 'fas fa-play';
             if (eq) eq.classList.add('paused');
         }
+        updateCollectionActiveTrackState();
         return;
     }
 
@@ -1819,6 +1933,7 @@ function togglePlay() {
             document.getElementById('playPauseBtn').className = 'fas fa-pause';
             if (eq) eq.classList.remove('paused');
         }
+        updateCollectionActiveTrackState();
     } catch (e) {}
 }
 
@@ -2053,6 +2168,7 @@ async function playMusic(track, artist, index = -1, preloadedImage = '') {
     titleElem.innerText = track || "Finding Song...";
     artistElem.innerText = artist || "";
     player.style.display = 'block';
+    updateCollectionActiveTrackState();
     
     if (preloadedImage) {
         thumbElem.src = preloadedImage;
