@@ -952,9 +952,19 @@ function isCurrentSongPlaying(trackTitle, trackArtist) {
     return false;
 }
 
+function setPlayPauseIcon(isPlaying) {
+    const btn = document.getElementById('playPauseBtn');
+    if (!btn) return;
+    if (isPlaying) {
+        btn.className = 'fas fa-pause main-play-btn';
+    } else {
+        btn.className = 'fas fa-play main-play-btn';
+    }
+}
+
 function isAudioActivePlaying() {
     if (activePlayerType === 'saavn') {
-        return audioPlayer && !audioPlayer.paused;
+        return audioPlayer && !audioPlayer.paused && !audioPlayer.ended;
     } else if (activePlayerType === 'youtube' && ytPlayer && typeof ytPlayer.getPlayerState === 'function') {
         return ytPlayer.getPlayerState() === 1;
     }
@@ -1738,8 +1748,7 @@ function updateMediaSession(title, artist, artworkUrl) {
 }
 
 audioPlayer.addEventListener('play', () => {
-    const btn = document.getElementById('playPauseBtn');
-    if (btn) btn.className = 'fas fa-pause';
+    setPlayPauseIcon(true);
     const eq = document.getElementById('equalizerWave');
     if (eq) eq.classList.remove('paused');
     if (currentSongMeta.track) document.title = `▶ ${currentSongMeta.track} - ${currentSongMeta.artist || 'MelodySphere'}`;
@@ -1748,8 +1757,7 @@ audioPlayer.addEventListener('play', () => {
 });
 
 audioPlayer.addEventListener('pause', () => {
-    const btn = document.getElementById('playPauseBtn');
-    if (btn) btn.className = 'fas fa-play';
+    setPlayPauseIcon(false);
     const eq = document.getElementById('equalizerWave');
     if (eq) eq.classList.add('paused');
     if (currentSongMeta.track) document.title = `⏸ ${currentSongMeta.track} - ${currentSongMeta.artist || 'MelodySphere'}`;
@@ -1878,20 +1886,19 @@ function initOrLoadPlayer(videoId) {
 
 function onPlayerStateChange(event) {
     if (activePlayerType !== 'youtube') return;
-    const btn = document.getElementById('playPauseBtn');
     const eq = document.getElementById('equalizerWave');
     if (event.data === 1) {
-        btn.className = 'fas fa-pause';
+        setPlayPauseIcon(true);
         if (eq) eq.classList.remove('paused');
         startProgressBar();
         updateCollectionActiveTrackState();
     } else if (event.data === 2) {
-        btn.className = 'fas fa-play';
+        setPlayPauseIcon(false);
         if (eq) eq.classList.add('paused');
         stopProgressBar();
         updateCollectionActiveTrackState();
     } else if (event.data === 0) {
-        btn.className = 'fas fa-play';
+        setPlayPauseIcon(false);
         if (eq) eq.classList.add('paused');
         stopProgressBar();
         updateCollectionActiveTrackState();
@@ -1901,40 +1908,78 @@ function onPlayerStateChange(event) {
         }
         playNext(true);
     } else if (event.data === 3) {
-        btn.className = 'fas fa-pause';
+        setPlayPauseIcon(true);
     }
 }
 
 function togglePlay() {
     const eq = document.getElementById('equalizerWave');
+
     if (activePlayerType === 'saavn') {
+        if (!audioPlayer.src) {
+            // If no stream loaded yet, play first track from queue or current meta
+            if (currentPlaylist && currentPlaylist.length > 0) {
+                const targetIdx = currentTrackIndex >= 0 ? currentTrackIndex : 0;
+                playTrackByIndex(targetIdx);
+            } else if (currentSongMeta && currentSongMeta.track) {
+                playMusic(currentSongMeta.track, currentSongMeta.artist, -1, currentSongMeta.image);
+            } else {
+                showToast('Please select a song to play', 'fa-info-circle');
+            }
+            return;
+        }
+
         if (audioPlayer.paused) {
-            audioPlayer.play().catch(e => console.error(e));
-            document.getElementById('playPauseBtn').className = 'fas fa-pause';
-            if (eq) eq.classList.remove('paused');
+            const playPromise = audioPlayer.play();
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    setPlayPauseIcon(true);
+                    if (eq) eq.classList.remove('paused');
+                    updateCollectionActiveTrackState();
+                }).catch(e => {
+                    console.warn("Audio play failed / interaction needed:", e);
+                    setPlayPauseIcon(false);
+                });
+            } else {
+                setPlayPauseIcon(true);
+                if (eq) eq.classList.remove('paused');
+                updateCollectionActiveTrackState();
+            }
         } else {
             audioPlayer.pause();
-            document.getElementById('playPauseBtn').className = 'fas fa-play';
+            setPlayPauseIcon(false);
             if (eq) eq.classList.add('paused');
+            updateCollectionActiveTrackState();
         }
-        updateCollectionActiveTrackState();
         return;
     }
 
-    if (!ytPlayer) return;
-    try {
-        const state = typeof ytPlayer.getPlayerState === 'function' ? ytPlayer.getPlayerState() : -1;
-        if (state === 1 || state === 3) {
-            if (typeof ytPlayer.pauseVideo === 'function') ytPlayer.pauseVideo();
-            document.getElementById('playPauseBtn').className = 'fas fa-play';
-            if (eq) eq.classList.add('paused');
-        } else {
-            if (typeof ytPlayer.playVideo === 'function') ytPlayer.playVideo();
-            document.getElementById('playPauseBtn').className = 'fas fa-pause';
-            if (eq) eq.classList.remove('paused');
-        }
-        updateCollectionActiveTrackState();
-    } catch (e) {}
+    if (activePlayerType === 'youtube' && ytPlayer) {
+        try {
+            const state = typeof ytPlayer.getPlayerState === 'function' ? ytPlayer.getPlayerState() : -1;
+            if (state === 1 || state === 3) {
+                if (typeof ytPlayer.pauseVideo === 'function') ytPlayer.pauseVideo();
+                setPlayPauseIcon(false);
+                if (eq) eq.classList.add('paused');
+            } else {
+                if (typeof ytPlayer.playVideo === 'function') ytPlayer.playVideo();
+                setPlayPauseIcon(true);
+                if (eq) eq.classList.remove('paused');
+            }
+            updateCollectionActiveTrackState();
+        } catch (e) {}
+        return;
+    }
+
+    // Default fallback if player not started yet
+    if (currentPlaylist && currentPlaylist.length > 0) {
+        const targetIdx = currentTrackIndex >= 0 ? currentTrackIndex : 0;
+        playTrackByIndex(targetIdx);
+    } else if (currentSongMeta && currentSongMeta.track) {
+        playMusic(currentSongMeta.track, currentSongMeta.artist, -1, currentSongMeta.image);
+    } else {
+        showToast('Please select a song to play', 'fa-info-circle');
+    }
 }
 
 function formatTime(seconds) {
@@ -2065,8 +2110,6 @@ function playTrackByIndex(index) {
 }
 
 function playNext(autoEnded = false) {
-    if (currentPlaylist.length === 0 || currentTrackIndex === -1) return;
-
     // 1. Repeat One Mode (loop current track if finished automatically)
     if (autoEnded && repeatMode === 'one') {
         if (activePlayerType === 'saavn') {
@@ -2082,6 +2125,32 @@ function playNext(autoEnded = false) {
         }
     }
 
+    if (!currentPlaylist || currentPlaylist.length === 0) {
+        if (currentSongMeta && currentSongMeta.track) {
+            if (activePlayerType === 'saavn') {
+                audioPlayer.currentTime = 0;
+                audioPlayer.play().catch(() => {});
+            } else if (activePlayerType === 'youtube' && ytPlayer && typeof ytPlayer.seekTo === 'function') {
+                try { ytPlayer.seekTo(0); ytPlayer.playVideo(); } catch (e) {}
+            }
+            showToast(`Replaying: ${currentSongMeta.track}`, 'fa-redo');
+        } else {
+            showToast('No more tracks in queue', 'fa-info-circle');
+        }
+        return;
+    }
+
+    if (currentPlaylist.length === 1) {
+        if (activePlayerType === 'saavn') {
+            audioPlayer.currentTime = 0;
+            audioPlayer.play().catch(() => {});
+        } else if (activePlayerType === 'youtube' && ytPlayer && typeof ytPlayer.seekTo === 'function') {
+            try { ytPlayer.seekTo(0); ytPlayer.playVideo(); } catch (e) {}
+        }
+        showToast(`Replaying: ${currentPlaylist[0].track}`, 'fa-redo');
+        return;
+    }
+
     // Record history for Previous button
     if (currentTrackIndex >= 0) {
         playbackHistory.push(currentTrackIndex);
@@ -2090,12 +2159,11 @@ function playNext(autoEnded = false) {
 
     // 2. Shuffle Mode
     if (isShuffle && currentPlaylist.length > 1) {
-        if (unplayedShuffleIndices.length === 0) {
+        if (!unplayedShuffleIndices || unplayedShuffleIndices.length === 0) {
             unplayedShuffleIndices = currentPlaylist.map((_, i) => i).filter(i => i !== currentTrackIndex);
         }
         if (unplayedShuffleIndices.length === 0) {
-            playTrackByIndex(currentTrackIndex);
-            return;
+            unplayedShuffleIndices = currentPlaylist.map((_, i) => i);
         }
         const randomPick = Math.floor(Math.random() * unplayedShuffleIndices.length);
         const nextIndex = unplayedShuffleIndices.splice(randomPick, 1)[0];
@@ -2105,12 +2173,20 @@ function playNext(autoEnded = false) {
 
     // 3. Normal Sequential Mode
     let nextIndex = currentTrackIndex + 1;
+    if (currentTrackIndex === -1) {
+        if (currentSongMeta && currentSongMeta.track) {
+            const foundIdx = currentPlaylist.findIndex(t => (t.track || '').toLowerCase() === (currentSongMeta.track || '').toLowerCase());
+            nextIndex = foundIdx !== -1 ? foundIdx + 1 : 0;
+        } else {
+            nextIndex = 0;
+        }
+    }
+
     if (nextIndex >= currentPlaylist.length) {
         if (autoEnded && repeatMode === 'off') {
             // End of playlist reached and repeat is off: stop playback
             if (activePlayerType === 'saavn') audioPlayer.pause();
-            const btn = document.getElementById('playPauseBtn');
-            if (btn) btn.className = 'fas fa-play';
+            setPlayPauseIcon(false);
             const eq = document.getElementById('equalizerWave');
             if (eq) eq.classList.add('paused');
             return;
@@ -2121,33 +2197,74 @@ function playNext(autoEnded = false) {
 }
 
 function playPrevious() {
-    if (currentPlaylist.length === 0 || currentTrackIndex === -1) return;
+    if (!currentPlaylist || currentPlaylist.length === 0) {
+        if (currentSongMeta && currentSongMeta.track) {
+            if (activePlayerType === 'saavn') {
+                audioPlayer.currentTime = 0;
+                audioPlayer.play().catch(() => {});
+            } else if (activePlayerType === 'youtube' && ytPlayer && typeof ytPlayer.seekTo === 'function') {
+                try { ytPlayer.seekTo(0); ytPlayer.playVideo(); } catch (e) {}
+            }
+            showToast(`Restarting: ${currentSongMeta.track}`, 'fa-undo');
+        } else {
+            showToast('No tracks in queue', 'fa-info-circle');
+        }
+        return;
+    }
 
-    // Standard player behavior: If track has played > 3 seconds, restart current track
+    if (currentPlaylist.length === 1) {
+        if (activePlayerType === 'saavn') {
+            audioPlayer.currentTime = 0;
+            audioPlayer.play().catch(() => {});
+        } else if (activePlayerType === 'youtube' && ytPlayer && typeof ytPlayer.seekTo === 'function') {
+            try { ytPlayer.seekTo(0); ytPlayer.playVideo(); } catch (e) {}
+        }
+        showToast(`Restarting: ${currentPlaylist[0].track}`, 'fa-undo');
+        return;
+    }
+
     let currentSec = 0;
     if (activePlayerType === 'saavn') {
         currentSec = audioPlayer.currentTime || 0;
     } else if (activePlayerType === 'youtube' && ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
         try { currentSec = ytPlayer.getCurrentTime() || 0; } catch (e) {}
     }
-    if (currentSec > 3) {
+
+    const now = Date.now();
+    const lastClick = window._lastPrevClickTime || 0;
+    // If track has played > 4s and not clicked again within 2s, rewind current track
+    if (currentSec > 4 && (now - lastClick > 2000)) {
+        window._lastPrevClickTime = now;
         if (activePlayerType === 'saavn') {
             audioPlayer.currentTime = 0;
         } else if (activePlayerType === 'youtube' && ytPlayer) {
             try { ytPlayer.seekTo(0); } catch (e) {}
         }
+        showToast('Restarting track (tap again for previous)', 'fa-undo');
         return;
     }
+    window._lastPrevClickTime = 0;
 
     // Pop from playback history if available
     if (playbackHistory.length > 0) {
         const prevIndex = playbackHistory.pop();
-        playTrackByIndex(prevIndex);
-        return;
+        if (prevIndex >= 0 && prevIndex < currentPlaylist.length && prevIndex !== currentTrackIndex) {
+            playTrackByIndex(prevIndex);
+            return;
+        }
     }
 
     let prevIndex = currentTrackIndex - 1;
-    if (prevIndex < 0) prevIndex = currentPlaylist.length - 1;
+    if (currentTrackIndex === -1) {
+        if (currentSongMeta && currentSongMeta.track) {
+            const foundIdx = currentPlaylist.findIndex(t => (t.track || '').toLowerCase() === (currentSongMeta.track || '').toLowerCase());
+            prevIndex = foundIdx > 0 ? foundIdx - 1 : currentPlaylist.length - 1;
+        } else {
+            prevIndex = currentPlaylist.length - 1;
+        }
+    } else if (prevIndex < 0) {
+        prevIndex = currentPlaylist.length - 1;
+    }
     playTrackByIndex(prevIndex);
 }
 
@@ -2180,7 +2297,7 @@ async function playMusic(track, artist, index = -1, preloadedImage = '') {
         iconElem.style.display = 'block';
     }
 
-    if (playBtn) playBtn.className = 'fas fa-pause';
+    setPlayPauseIcon(true);
     if (eq) eq.classList.remove('paused');
     if (downloadBtn) downloadBtn.style.display = 'none';
     
@@ -2273,13 +2390,13 @@ async function playMusic(track, artist, index = -1, preloadedImage = '') {
         } else {
             isChangingSong = false;
             titleElem.innerText = "Track not found";
-            if (playBtn) playBtn.className = 'fas fa-play';
+            setPlayPauseIcon(false);
             if (eq) eq.classList.add('paused');
         }
     } catch (err) {
         isChangingSong = false;
         titleElem.innerText = "Connection Error";
-        if (playBtn) playBtn.className = 'fas fa-play';
+        setPlayPauseIcon(false);
         if (eq) eq.classList.add('paused');
     }
 
@@ -2869,8 +2986,7 @@ function finishSleepTimer() {
         try { ytPlayer.pauseVideo(); } catch (e) {}
     }
 
-    const btn = document.getElementById('playPauseBtn');
-    if (btn) btn.className = 'fas fa-play';
+    setPlayPauseIcon(false);
     const eq = document.getElementById('equalizerWave');
     if (eq) eq.classList.add('paused');
 
@@ -2961,34 +3077,30 @@ function bindControlButtons() {
 
     // 2. Main Playback Controls
     const playPauseBtn = document.getElementById('playPauseBtn');
-    const prevBtn = document.querySelector('.player-buttons .fa-step-backward');
-    const nextBtn = document.querySelector('.player-buttons .fa-step-forward');
+    const prevBtn = document.getElementById('prevBtn') || document.querySelector('.player-buttons .fa-step-backward');
+    const nextBtn = document.getElementById('nextBtn') || document.querySelector('.player-buttons .fa-step-forward');
     const playerShuffle = document.getElementById('shuffleBtn');
 
-    if (playPauseBtn) {
-        playPauseBtn.onclick = (e) => {
+    const bindAction = (el, actionFn) => {
+        if (!el) return;
+        el.onclick = (e) => {
             if (e) e.stopPropagation();
-            togglePlay();
+            actionFn();
         };
-    }
-    if (prevBtn) {
-        prevBtn.onclick = (e) => {
-            if (e) e.stopPropagation();
-            playPrevious();
-        };
-    }
-    if (nextBtn) {
-        nextBtn.onclick = (e) => {
-            if (e) e.stopPropagation();
-            playNext();
-        };
-    }
-    if (playerShuffle) {
-        playerShuffle.onclick = (e) => {
-            if (e) e.stopPropagation();
-            toggleShuffle();
-        };
-    }
+        // Eliminate mobile tap delay and ensure instant response on mobile
+        el.addEventListener('touchend', (e) => {
+            if (e) {
+                e.stopPropagation();
+                e.preventDefault();
+            }
+            actionFn();
+        }, { passive: false });
+    };
+
+    bindAction(playPauseBtn, togglePlay);
+    bindAction(prevBtn, playPrevious);
+    bindAction(nextBtn, playNext);
+    bindAction(playerShuffle, toggleShuffle);
 }
 
 if (document.readyState === 'loading') {

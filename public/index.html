@@ -433,9 +433,9 @@
 
                     <div class="player-buttons">
                         <i class="fas fa-random ctrl-sub-btn" id="shuffleBtn" onclick="toggleShuffle()" title="Shuffle (S)"></i>
-                        <i class="fas fa-step-backward ctrl-btn" onclick="playPrevious()" title="Previous (Shift+Left)"></i>
+                        <i class="fas fa-step-backward ctrl-btn" id="prevBtn" onclick="playPrevious()" title="Previous (Shift+Left)"></i>
                         <i class="fas fa-pause main-play-btn" id="playPauseBtn" onclick="togglePlay()" title="Play/Pause (Space)"></i>
-                        <i class="fas fa-step-forward ctrl-btn" onclick="playNext()" title="Next (Shift+Right)"></i>
+                        <i class="fas fa-step-forward ctrl-btn" id="nextBtn" onclick="playNext()" title="Next (Shift+Right)"></i>
                         <div class="repeat-wrapper" id="repeatWrap" onclick="toggleRepeat()" title="Repeat (R)">
                             <i class="fas fa-redo ctrl-sub-btn" id="repeatBtn"></i>
                             <span class="repeat-badge" id="repeatBadge" style="display:none;">1</span>

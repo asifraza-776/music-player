@@ -1085,37 +1085,57 @@ body::after {
     align-items: center;
     justify-content: flex-end;
     flex: 1;
+    position: relative;
 }
 
 .player-left-tools {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-right: 8px;
+    margin-right: auto;
+    z-index: 10;
 }
 
 /* ---- Main Playback Buttons (Shuffle / Prev / Play / Next / Repeat) - Perfectly Centered on Desktop ---- */
 .player-buttons {
     position: absolute;
+    top: 50%;
     left: 50%;
-    transform: translateX(-50%);
+    transform: translate(-50%, -50%);
     display: flex;
     gap: 22px;
     align-items: center;
-    z-index: 2;
+    justify-content: center;
+    z-index: 100 !important;
+    pointer-events: auto !important;
 }
 
+.player-buttons * {
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+    cursor: pointer !important;
+}
+
+#prevBtn,
+#nextBtn,
 .player-buttons .ctrl-btn {
-    cursor: pointer;
-    font-size: 20px;
-    color: rgba(255,255,255,0.85);
-    transition: all 0.2s;
-    flex-shrink: 0;
+    cursor: pointer !important;
+    font-size: 20px !important;
+    color: rgba(255,255,255,0.85) !important;
+    transition: all 0.2s !important;
+    flex-shrink: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 36px !important;
+    height: 36px !important;
 }
 
+#prevBtn:hover,
+#nextBtn:hover,
 .player-buttons .ctrl-btn:hover {
-    color: #fff;
-    transform: scale(1.15);
+    color: #fff !important;
+    transform: scale(1.15) !important;
 }
 
 .player-buttons .ctrl-sub-btn {
@@ -1163,26 +1183,35 @@ body::after {
     pointer-events: none;
 }
 
+#playPauseBtn,
 .player-buttons .main-play-btn {
-    cursor: pointer;
-    font-size: 38px;
-    color: var(--neon-cyan);
-    transition: all 0.2s;
-    flex-shrink: 0;
-    filter: drop-shadow(0 0 12px rgba(0,242,254,0.6));
+    cursor: pointer !important;
+    font-size: 38px !important;
+    color: var(--neon-cyan) !important;
+    transition: all 0.2s !important;
+    flex-shrink: 0 !important;
+    filter: drop-shadow(0 0 12px rgba(0,242,254,0.6)) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 48px !important;
+    height: 48px !important;
 }
 
+#playPauseBtn:hover,
 .player-buttons .main-play-btn:hover {
-    transform: scale(1.15);
-    filter: drop-shadow(0 0 22px rgba(0, 242, 254, 0.9));
+    transform: scale(1.15) !important;
+    filter: drop-shadow(0 0 22px rgba(0, 242, 254, 0.9)) !important;
 }
 
 .player-right {
     display: flex;
     align-items: center;
     gap: 10px;
-    flex: 1;
+    flex: 0 0 auto;
+    margin-left: auto;
     justify-content: flex-end;
+    z-index: 10;
 }
 
 .close-player {
@@ -2912,7 +2941,7 @@ input[type="range"].custom-slider::-moz-range-thumb {
         align-items: center !important;
         justify-content: center !important;
         gap: 8px !important;
-        z-index: 60 !important;
+        z-index: 100 !important;
         border: none !important;
         padding: 0 !important;
         margin: 0 !important;
@@ -2922,6 +2951,8 @@ input[type="range"].custom-slider::-moz-range-thumb {
     .player-buttons * {
         pointer-events: auto !important;
         touch-action: manipulation !important;
+        -webkit-tap-highlight-color: transparent !important;
+        user-select: none !important;
     }
 
     .player-buttons .ctrl-sub-btn {
@@ -2935,6 +2966,8 @@ input[type="range"].custom-slider::-moz-range-thumb {
         cursor: pointer !important;
     }
 
+    #prevBtn,
+    #nextBtn,
     .player-buttons .ctrl-btn {
         font-size: 20px !important;
         color: rgba(255, 255, 255, 0.9) !important;
@@ -2946,6 +2979,7 @@ input[type="range"].custom-slider::-moz-range-thumb {
         cursor: pointer !important;
     }
 
+    #playPauseBtn,
     .player-buttons .main-play-btn {
         font-size: 32px !important;
         color: var(--neon-cyan) !important;
