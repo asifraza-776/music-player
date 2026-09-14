@@ -992,15 +992,33 @@ function playCollectionTrackByIndex(index) {
     playTrackByIndex(index);
 }
 
-function playCurrentCollection(isShuffle = false) {
-    if (!activeCollection || !activeCollection.songs || activeCollection.songs.length === 0) return;
+function playCurrentCollection(shuffleMode = false) {
+    if (!activeCollection || !activeCollection.songs || activeCollection.songs.length === 0) {
+        showToast('Playlist tracks loading, please wait...', 'fa-spinner');
+        return;
+    }
 
     let songs = [...activeCollection.songs];
-    if (isShuffle) {
+    if (shuffleMode) {
         for (let i = songs.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [songs[i], songs[j]] = [songs[j], songs[i]];
         }
+        isShuffle = true;
+        const btn = document.getElementById('shuffleBtn');
+        if (btn) {
+            btn.classList.add('active');
+            btn.setAttribute('title', 'Shuffle On (S)');
+        }
+        showToast('Shuffle ON: Playing random tracks', 'fa-random');
+    } else {
+        isShuffle = false;
+        const btn = document.getElementById('shuffleBtn');
+        if (btn) {
+            btn.classList.remove('active');
+            btn.setAttribute('title', 'Shuffle Off (S)');
+        }
+        showToast('Playing playlist from start', 'fa-play');
     }
 
     currentPlaylist = songs.map(s => ({
@@ -1008,6 +1026,12 @@ function playCurrentCollection(isShuffle = false) {
         artist: s.artist || s.singers || '',
         image: s.image || (activeCollection ? activeCollection.image : '') || ''
     }));
+
+    if (shuffleMode && currentPlaylist.length > 1) {
+        unplayedShuffleIndices = currentPlaylist.map((_, i) => i).filter(i => i !== 0);
+    } else {
+        unplayedShuffleIndices = [];
+    }
 
     closeCollectionModal();
     playTrackByIndex(0);
