@@ -2246,18 +2246,26 @@ function initVoiceSearch() {
 // ==========================================
 let deferredPwaPrompt = null;
 
+function isAppInstalled() {
+    return window.matchMedia('(display-mode: standalone)').matches ||
+           window.navigator.standalone === true ||
+           localStorage.getItem('pwa_installed') === 'true';
+}
+
 window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPwaPrompt = e;
-    const installBtn = document.getElementById('pwaInstallBtn');
-    if (installBtn) {
-        installBtn.style.display = 'inline-flex';
+    if (!isAppInstalled()) {
+        const installBtn = document.getElementById('pwaInstallBtn');
+        if (installBtn) {
+            installBtn.style.display = 'inline-flex';
+        }
     }
-    console.log('[PWA] beforeinstallprompt captured, install button ready');
 });
 
 window.addEventListener('appinstalled', () => {
     deferredPwaPrompt = null;
+    localStorage.setItem('pwa_installed', 'true');
     const installBtn = document.getElementById('pwaInstallBtn');
     if (installBtn) installBtn.style.display = 'none';
     console.log('[PWA] MelodySphere was installed successfully!');
@@ -2271,10 +2279,14 @@ async function installPWA() {
     deferredPwaPrompt.prompt();
     const { outcome } = await deferredPwaPrompt.userChoice;
     console.log(`[PWA] Install prompt result: ${outcome}`);
+    if (outcome === 'accepted') {
+        localStorage.setItem('pwa_installed', 'true');
+    }
     deferredPwaPrompt = null;
     const installBtn = document.getElementById('pwaInstallBtn');
     if (installBtn) installBtn.style.display = 'none';
 }
+
 
 // Register Service Worker for PWA
 if ('serviceWorker' in navigator) {
