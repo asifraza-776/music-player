@@ -1831,48 +1831,49 @@ input[type="range"].custom-slider::-moz-range-thumb {
    ✨ PREMIUM PLAYER ACTION BUTTONS & GLOWING DOWNLOAD
    ========================================== */
 .player-action-btn {
-    width: 34px;
-    height: 34px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: rgba(255,255,255,0.75);
+    color: rgba(255, 255, 255, 0.65);
     cursor: pointer;
-    transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transition: all 0.2s ease;
     outline: none;
-    font-size: 14px;
+    font-size: 11.5px;
     text-decoration: none !important;
     flex-shrink: 0;
 }
 
 .player-action-btn:hover {
     color: #fff;
-    background: rgba(255,255,255,0.12);
-    transform: scale(1.12);
-    border-color: rgba(255,255,255,0.25);
+    background: rgba(255, 255, 255, 0.14);
+    transform: scale(1.1);
+    border-color: rgba(255, 255, 255, 0.3);
 }
 
 .player-action-btn:active {
     transform: scale(0.92);
 }
 
-/* Download Button — Neon Cyan Glow */
+/* Download Button — Sleek & Compact Monochrome Glass (No bright cyan background) */
 .download-glow-btn {
-    background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%) !important;
-    border: none !important;
-    color: #030811 !important;
-    font-size: 14px !important;
-    box-shadow: 0 0 14px rgba(0, 242, 254, 0.5), 0 3px 10px rgba(0, 0, 0, 0.35) !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    color: rgba(255, 255, 255, 0.65) !important;
+    font-size: 11.5px !important;
+    box-shadow: none !important;
 }
 
 .download-glow-btn:hover {
-    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
-    box-shadow: 0 0 22px rgba(0, 242, 254, 0.85), 0 5px 16px rgba(0, 0, 0, 0.45) !important;
-    transform: scale(1.15) !important;
-    color: #000 !important;
+    background: rgba(255, 255, 255, 0.14) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.15) !important;
+    transform: scale(1.1) !important;
+    color: #fff !important;
 }
 
 .download-glow-btn i {
@@ -1880,21 +1881,23 @@ input[type="range"].custom-slider::-moz-range-thumb {
 }
 
 .download-glow-btn:hover i {
-    transform: translateY(2px);
+    transform: translateY(1px);
 }
 
-/* Lyrics Button */
+/* Lyrics Button — Sleek & Compact Monochrome Glass (No bright cyan color) */
 .lyrics-glow-btn {
-    color: var(--neon-cyan) !important;
-    background: rgba(0, 242, 254, 0.08) !important;
-    border-color: rgba(0, 242, 254, 0.25) !important;
+    color: rgba(255, 255, 255, 0.65) !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    font-size: 11.5px !important;
+    box-shadow: none !important;
 }
 
 .lyrics-glow-btn:hover {
-    background: rgba(0, 242, 254, 0.18) !important;
-    border-color: var(--neon-cyan) !important;
-    box-shadow: 0 0 14px rgba(0, 242, 254, 0.4) !important;
-    transform: scale(1.12) !important;
+    background: rgba(255, 255, 255, 0.14) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.15) !important;
+    transform: scale(1.1) !important;
     color: #fff !important;
 }
 
@@ -2764,23 +2767,29 @@ input[type="range"].custom-slider::-moz-range-thumb {
     }
 
     .player-action-btn {
-        width: 32px !important;
-        height: 32px !important;
-        font-size: 12.5px !important;
+        width: 25px !important;
+        height: 25px !important;
+        font-size: 10.5px !important;
         flex-shrink: 0 !important;
-        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
         border-radius: 50% !important;
+        background: rgba(255, 255, 255, 0.05) !important;
+        color: rgba(255, 255, 255, 0.65) !important;
+        box-shadow: none !important;
     }
 
     .download-glow-btn {
-        background: linear-gradient(135deg, #00f2fe, #4facfe) !important;
-        border: none !important;
-        box-shadow: 0 0 10px rgba(0,242,254,0.4) !important;
+        background: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        color: rgba(255, 255, 255, 0.65) !important;
+        box-shadow: none !important;
     }
 
     .lyrics-glow-btn {
-        border-color: rgba(0,242,254,0.4) !important;
-        color: var(--neon-cyan) !important;
+        background: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        color: rgba(255, 255, 255, 0.65) !important;
+        box-shadow: none !important;
     }
 
     /* Right Group: Playback Controls (Shuffle, Prev, Play, Next, Repeat) */
@@ -3019,9 +3028,9 @@ input[type="range"].custom-slider::-moz-range-thumb {
     }
 
     .player-action-btn {
-        width: 30px !important;
-        height: 30px !important;
-        font-size: 11.5px !important;
+        width: 24px !important;
+        height: 24px !important;
+        font-size: 10px !important;
     }
 
     .player-buttons {
