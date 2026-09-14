@@ -2670,32 +2670,32 @@ input[type="range"].custom-slider::-moz-range-thumb {
         font-size: 9.5px !important;
     }
 
-    /* Row 2: Single Unified Line for Song Info + Big Controls + Glow Buttons */
+    /* Row 2: 2-Tier Spacious Mobile Player Layout (Song Info on Top, Controls on Bottom) */
     .player-main-row {
+        position: relative !important;
         display: flex !important;
-        align-items: center !important;
-        justify-content: space-between !important;
+        flex-direction: column !important;
         width: 100% !important;
-        gap: 4px !important;
-        flex-wrap: nowrap !important;
+        gap: 6px !important;
     }
 
-    /* Left: Song thumbnail & info */
+    /* Top Tier: Song Thumbnail, Title, Artist & Like / Add buttons (Full Width) */
     .now-playing {
         display: flex !important;
         align-items: center !important;
-        gap: 6px !important;
-        flex: 1 !important;
-        min-width: 0 !important;
-        max-width: 38% !important;
+        gap: 8px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding-right: 32px !important; /* Reserve room for close button */
+        box-sizing: border-box !important;
     }
 
     .now-playing-icon {
-        width: 34px !important;
-        height: 34px !important;
-        min-width: 34px !important;
-        border-radius: 6px !important;
-        font-size: 14px !important;
+        width: 38px !important;
+        height: 38px !important;
+        min-width: 38px !important;
+        border-radius: 8px !important;
+        font-size: 15px !important;
         flex-shrink: 0 !important;
     }
 
@@ -2706,71 +2706,57 @@ input[type="range"].custom-slider::-moz-range-thumb {
     }
 
     .now-playing-title {
-        font-size: 11.5px !important;
+        font-size: 12.5px !important;
+        font-weight: 600 !important;
         white-space: nowrap !important;
         overflow: hidden !important;
         text-overflow: ellipsis !important;
+        line-height: 1.3 !important;
     }
 
     .now-playing-artist {
-        font-size: 9.5px !important;
+        font-size: 10.5px !important;
+        color: rgba(255, 255, 255, 0.55) !important;
         white-space: nowrap !important;
         overflow: hidden !important;
         text-overflow: ellipsis !important;
+        margin-top: 1px !important;
     }
 
     .equalizer-waves {
         display: none !important;
     }
 
-    /* Right: Cluster containing Playback Buttons + Action Icons side-by-side */
+    /* Close Button: Positioned cleanly at top right of the player bar */
+    .close-player {
+        position: absolute !important;
+        top: 0 !important;
+        right: 0 !important;
+        font-size: 15px !important;
+        padding: 4px 6px !important;
+        color: rgba(255, 255, 255, 0.5) !important;
+        cursor: pointer !important;
+        z-index: 10 !important;
+    }
+
+    /* Bottom Tier: Utility Actions (Left) + Playback Controls (Right) */
     .player-actions-cluster {
         display: flex !important;
         align-items: center !important;
-        gap: 10px !important;
-        flex-shrink: 0 !important;
-        flex: none !important;
+        justify-content: space-between !important;
+        width: 100% !important;
+        padding-top: 5px !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+        margin: 0 !important;
     }
 
-    /* Big Prominent Playback buttons: Shuffle, Prev, Play, Next, Repeat */
-    .player-buttons {
-        position: static !important;
-        transform: none !important;
-        display: flex !important;
-        align-items: center !important;
-        gap: 12px !important;
-        flex-shrink: 0 !important;
-        padding-right: 10px !important;
-        border-right: 1px solid rgba(255,255,255,0.15) !important; /* Separator line */
-        margin-right: 4px !important;
-    }
-
-    .player-buttons .ctrl-sub-btn {
-        font-size: 13.5px !important;
-        padding: 3px !important;
-    }
-
-    .player-buttons .ctrl-btn {
-        font-size: 17px !important;
-        color: rgba(255,255,255,0.85) !important;
-        padding: 4px 6px !important;
-    }
-
-    .player-buttons .main-play-btn {
-        font-size: 28px !important;
-        color: var(--neon-cyan) !important;
-        padding: 4px 6px !important;
-        filter: drop-shadow(0 0 8px rgba(0, 242, 254, 0.6)) !important;
-    }
-
-    /* Action buttons: Lyrics, Download - clearly separated from playback */
+    /* Left Group: Feature buttons (Sleep Timer, Lyrics, Download) */
     .player-right {
         display: flex !important;
         align-items: center !important;
         gap: 8px !important;
-        flex-shrink: 0 !important;
+        flex: none !important;
         width: auto !important;
-        min-width: 0 !important;
     }
 
     .volume-control-wrap {
@@ -2780,30 +2766,52 @@ input[type="range"].custom-slider::-moz-range-thumb {
     .player-action-btn {
         width: 32px !important;
         height: 32px !important;
-        font-size: 13px !important;
+        font-size: 12.5px !important;
         flex-shrink: 0 !important;
-        border: 1.5px solid rgba(255,255,255,0.15) !important;
+        border: 1px solid rgba(255, 255, 255, 0.15) !important;
+        border-radius: 50% !important;
     }
 
-    /* Download button — clearly distinct cyan filled */
     .download-glow-btn {
         background: linear-gradient(135deg, #00f2fe, #4facfe) !important;
         border: none !important;
         box-shadow: 0 0 10px rgba(0,242,254,0.4) !important;
     }
 
-    /* Lyrics button — distinct outline cyan */
     .lyrics-glow-btn {
         border-color: rgba(0,242,254,0.4) !important;
         color: var(--neon-cyan) !important;
     }
 
-    .close-player {
-        font-size: 13px !important;
-        padding: 2px !important;
-        margin-left: 2px !important;
-        flex-shrink: 0 !important;
-        color: rgba(255,255,255,0.4) !important;
+    /* Right Group: Playback Controls (Shuffle, Prev, Play, Next, Repeat) */
+    .player-buttons {
+        position: static !important;
+        transform: none !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 13px !important;
+        flex: none !important;
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    .player-buttons .ctrl-sub-btn {
+        font-size: 14.5px !important;
+        padding: 4px !important;
+    }
+
+    .player-buttons .ctrl-btn {
+        font-size: 17.5px !important;
+        color: rgba(255, 255, 255, 0.85) !important;
+        padding: 4px 6px !important;
+    }
+
+    .player-buttons .main-play-btn {
+        font-size: 30px !important;
+        color: var(--neon-cyan) !important;
+        padding: 2px 6px !important;
+        filter: drop-shadow(0 0 8px rgba(0, 242, 254, 0.6)) !important;
     }
 
     /* Modals as Mobile Bottom-Sheets */
@@ -2873,7 +2881,7 @@ input[type="range"].custom-slider::-moz-range-thumb {
 
     /* Footer padding for sticky player */
     .footer {
-        margin-bottom: 110px !important;
+        margin-bottom: 140px !important;
         font-size: 11.5px !important;
         padding: 15px 10px !important;
     }
@@ -2882,7 +2890,7 @@ input[type="range"].custom-slider::-moz-range-thumb {
 /* Extra Small Devices (Smartphones <= 420px) */
 @media (max-width: 420px) {
     .container {
-        padding: 0 8px 110px 8px !important;
+        padding: 0 8px 140px 8px !important;
     }
 
     .navbar {
@@ -3001,7 +3009,19 @@ input[type="range"].custom-slider::-moz-range-thumb {
     }
 
     .player-actions-cluster {
-        gap: 8px !important;
+        width: 100% !important;
+        justify-content: space-between !important;
+        gap: 6px !important;
+    }
+
+    .player-right {
+        gap: 6px !important;
+    }
+
+    .player-action-btn {
+        width: 30px !important;
+        height: 30px !important;
+        font-size: 11.5px !important;
     }
 
     .player-buttons {
@@ -3009,41 +3029,47 @@ input[type="range"].custom-slider::-moz-range-thumb {
         transform: none !important;
         display: flex !important;
         align-items: center !important;
-        gap: 9px !important;
-        padding-right: 8px !important;
-        border-right: 1px solid rgba(255, 255, 255, 0.15) !important;
-        margin-right: 3px !important;
+        gap: 10px !important;
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
     }
 
     .player-buttons .ctrl-sub-btn {
-        font-size: 11.5px !important;
-        padding: 2px !important;
+        font-size: 13.5px !important;
+        padding: 3px !important;
     }
 
     .player-buttons .ctrl-btn {
-        font-size: 15px !important;
+        font-size: 16px !important;
         padding: 3px 4px !important;
     }
 
     .player-buttons .main-play-btn {
-        font-size: 24px !important;
+        font-size: 26px !important;
         color: var(--neon-cyan) !important;
-        padding: 3px 5px !important;
-    }
-
-    .player-right {
-        gap: 5px !important;
-    }
-
-    .player-action-btn {
-        width: 27px !important;
-        height: 27px !important;
-        font-size: 10.5px !important;
+        padding: 2px 4px !important;
     }
 
     .close-player {
-        font-size: 12px !important;
-        padding: 3px !important;
+        font-size: 14px !important;
+        padding: 4px 6px !important;
+    }
+
+    .sleep-modal-card {
+        width: 100% !important;
+        max-width: 100% !important;
+        border-radius: 24px 24px 0 0 !important;
+    }
+
+    .sleep-options-grid {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 7px !important;
+    }
+
+    .sleep-opt-btn {
+        padding: 10px 8px !important;
+        font-size: 11.5px !important;
     }
 }
 
@@ -3051,7 +3077,7 @@ input[type="range"].custom-slider::-moz-range-thumb {
    🌙 SLEEP TIMER MODAL & CONTROLS
    ========================================== */
 .sleep-modal-card {
-    max-width: 420px !important;
+    max-width: 420px;
     background: rgba(18, 16, 38, 0.95) !important;
     backdrop-filter: blur(25px) !important;
     -webkit-backdrop-filter: blur(25px) !important;
