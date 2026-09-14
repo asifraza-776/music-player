@@ -9,6 +9,19 @@ let currentPlaylist = [];
 let currentTrackIndex = -1;
 let currentSongMeta = { track: '', artist: '', image: '', id: '', hasLyrics: false, streamUrl: '' };
 
+// Playback Modes: Shuffle & Repeat
+let isShuffle = false;
+let repeatMode = 'off'; // 'off' | 'all' | 'one'
+let unplayedShuffleIndices = [];
+let playbackHistory = [];
+
+// Sleep Timer State
+let sleepTimerInterval = null;
+let sleepTimerEndTime = null;
+let sleepTimerMode = null; // null | 'minutes' | 'end-of-song'
+let sleepOriginalVolume = null;
+let isSleepFading = false;
+
 // User Library State (Synced with Backend DB & LocalStorage)
 let userLibrary = {
     likedTracks: [],
@@ -72,6 +85,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         } else if (e.key === 'm' || e.key === 'M') {
             toggleMute();
+        } else if (e.key === 's' || e.key === 'S') {
+            toggleShuffle();
+        } else if (e.key === 'r' || e.key === 'R') {
+            toggleRepeat();
         }
     });
 
@@ -1591,7 +1608,11 @@ audioPlayer.addEventListener('pause', () => {
 
 audioPlayer.addEventListener('ended', () => {
     if (isChangingSong) return; // Ignore during transitions
-    playNext();
+    if (sleepTimerMode === 'end-of-song') {
+        finishSleepTimer();
+        return;
+    }
+    playNext(true);
 });
 
 audioPlayer.addEventListener('error', async (e) => {
@@ -1720,7 +1741,11 @@ function onPlayerStateChange(event) {
         btn.className = 'fas fa-play';
         if (eq) eq.classList.add('paused');
         stopProgressBar();
-        playNext();
+        if (sleepTimerMode === 'end-of-song') {
+            finishSleepTimer();
+            return;
+        }
+        playNext(true);
     } else if (event.data === 3) {
         btn.className = 'fas fa-pause';
     }
@@ -1883,15 +1908,88 @@ function playTrackByIndex(index) {
     }
 }
 
-function playNext() {
+function playNext(autoEnded = false) {
     if (currentPlaylist.length === 0 || currentTrackIndex === -1) return;
+
+    // 1. Repeat One Mode (loop current track if finished automatically)
+    if (autoEnded && repeatMode === 'one') {
+        if (activePlayerType === 'saavn') {
+            audioPlayer.currentTime = 0;
+            audioPlayer.play().catch(() => {});
+            return;
+        } else if (activePlayerType === 'youtube' && ytPlayer && typeof ytPlayer.seekTo === 'function') {
+            try {
+                ytPlayer.seekTo(0);
+                ytPlayer.playVideo();
+                return;
+            } catch (e) {}
+        }
+    }
+
+    // Record history for Previous button
+    if (currentTrackIndex >= 0) {
+        playbackHistory.push(currentTrackIndex);
+        if (playbackHistory.length > 50) playbackHistory.shift();
+    }
+
+    // 2. Shuffle Mode
+    if (isShuffle && currentPlaylist.length > 1) {
+        if (unplayedShuffleIndices.length === 0) {
+            unplayedShuffleIndices = currentPlaylist.map((_, i) => i).filter(i => i !== currentTrackIndex);
+        }
+        if (unplayedShuffleIndices.length === 0) {
+            playTrackByIndex(currentTrackIndex);
+            return;
+        }
+        const randomPick = Math.floor(Math.random() * unplayedShuffleIndices.length);
+        const nextIndex = unplayedShuffleIndices.splice(randomPick, 1)[0];
+        playTrackByIndex(nextIndex);
+        return;
+    }
+
+    // 3. Normal Sequential Mode
     let nextIndex = currentTrackIndex + 1;
-    if (nextIndex >= currentPlaylist.length) nextIndex = 0;
+    if (nextIndex >= currentPlaylist.length) {
+        if (autoEnded && repeatMode === 'off') {
+            // End of playlist reached and repeat is off: stop playback
+            if (activePlayerType === 'saavn') audioPlayer.pause();
+            const btn = document.getElementById('playPauseBtn');
+            if (btn) btn.className = 'fas fa-play';
+            const eq = document.getElementById('equalizerWave');
+            if (eq) eq.classList.add('paused');
+            return;
+        }
+        nextIndex = 0; // Wrap back to first track on Repeat All or manual next
+    }
     playTrackByIndex(nextIndex);
 }
 
 function playPrevious() {
     if (currentPlaylist.length === 0 || currentTrackIndex === -1) return;
+
+    // Standard player behavior: If track has played > 3 seconds, restart current track
+    let currentSec = 0;
+    if (activePlayerType === 'saavn') {
+        currentSec = audioPlayer.currentTime || 0;
+    } else if (activePlayerType === 'youtube' && ytPlayer && typeof ytPlayer.getCurrentTime === 'function') {
+        try { currentSec = ytPlayer.getCurrentTime() || 0; } catch (e) {}
+    }
+    if (currentSec > 3) {
+        if (activePlayerType === 'saavn') {
+            audioPlayer.currentTime = 0;
+        } else if (activePlayerType === 'youtube' && ytPlayer) {
+            try { ytPlayer.seekTo(0); } catch (e) {}
+        }
+        return;
+    }
+
+    // Pop from playback history if available
+    if (playbackHistory.length > 0) {
+        const prevIndex = playbackHistory.pop();
+        playTrackByIndex(prevIndex);
+        return;
+    }
+
     let prevIndex = currentTrackIndex - 1;
     if (prevIndex < 0) prevIndex = currentPlaylist.length - 1;
     playTrackByIndex(prevIndex);
@@ -1958,6 +2056,9 @@ async function playMusic(track, artist, index = -1) {
                 thumbElem.src = saavnData.image;
                 thumbElem.style.display = 'block';
                 iconElem.style.display = 'none';
+                applyDynamicAmbientGlow(saavnData.image, saavnData.title || track, saavnData.artist || artist);
+            } else {
+                applyDynamicAmbientGlow(null, saavnData.title || track, saavnData.artist || artist);
             }
             
             if (downloadBtn) {
@@ -1995,6 +2096,7 @@ async function playMusic(track, artist, index = -1) {
             thumbElem.src = currentSongMeta.image;
             thumbElem.style.display = 'block';
             iconElem.style.display = 'none';
+            applyDynamicAmbientGlow(currentSongMeta.image, track, artist);
             
             isChangingSong = false; // New song loaded via YouTube
             updateMediaSession(track, artist || "", currentSongMeta.image);
@@ -2012,7 +2114,6 @@ async function playMusic(track, artist, index = -1) {
         if (eq) eq.classList.add('paused');
     }
 
-    
     if (window.innerWidth < 768) player.scrollIntoView({ behavior: 'smooth' });
 }
 
@@ -2299,5 +2400,367 @@ if ('serviceWorker' in navigator) {
                 console.warn('[PWA] Service Worker registration failed:', err);
             });
     });
+}
+
+// ==========================================
+// 🔀 SHUFFLE & REPEAT PLAYBACK CONTROLS
+// ==========================================
+
+function toggleShuffle() {
+    isShuffle = !isShuffle;
+    const btn = document.getElementById('shuffleBtn');
+    if (btn) {
+        if (isShuffle) {
+            btn.classList.add('active');
+            btn.setAttribute('title', 'Shuffle On (S)');
+            showToast('Shuffle ON', 'fa-random');
+            if (currentPlaylist.length > 0) {
+                unplayedShuffleIndices = currentPlaylist.map((_, i) => i).filter(i => i !== currentTrackIndex);
+            }
+        } else {
+            btn.classList.remove('active');
+            btn.setAttribute('title', 'Shuffle Off (S)');
+            showToast('Shuffle OFF', 'fa-random');
+            unplayedShuffleIndices = [];
+        }
+    }
+}
+
+function toggleRepeat() {
+    const btn = document.getElementById('repeatBtn');
+    const badge = document.getElementById('repeatBadge');
+    
+    if (repeatMode === 'off') {
+        repeatMode = 'all';
+        if (btn) btn.classList.add('active');
+        if (badge) badge.style.display = 'none';
+        showToast('Repeat: All tracks', 'fa-redo');
+    } else if (repeatMode === 'all') {
+        repeatMode = 'one';
+        if (btn) btn.classList.add('active');
+        if (badge) badge.style.display = 'flex';
+        showToast('Repeat: Current song', 'fa-redo');
+    } else {
+        repeatMode = 'off';
+        if (btn) btn.classList.remove('active');
+        if (badge) badge.style.display = 'none';
+        showToast('Repeat OFF', 'fa-redo');
+    }
+}
+
+// ==========================================
+// 🎨 DYNAMIC AMBIENT ALBUM GLOW
+// ==========================================
+
+const AMBIENT_PALETTES = [
+    { r: 0, g: 242, b: 254 },    // Electric Cyan
+    { r: 255, g: 8, b: 68 },     // Neon Pink/Rose
+    { r: 255, g: 126, b: 40 },   // Radiant Amber
+    { r: 168, g: 85, b: 247 },   // Cyber Purple
+    { r: 16, g: 217, b: 140 },   // Emerald Mint
+    { r: 236, g: 72, b: 153 },   // Hot Magenta
+    { r: 59, g: 130, b: 246 },   // Cobalt Blue
+    { r: 245, g: 158, b: 11 },   // Golden Sunset
+    { r: 20, g: 184, b: 166 },   // Deep Teal
+    { r: 192, g: 132, b: 252 }   // Lavender Violet
+];
+
+function getHarmonicColor(title = '', artist = '') {
+    const combined = `${title}-${artist}`.toLowerCase();
+    let hash = 0;
+    for (let i = 0; i < combined.length; i++) {
+        hash = (hash << 5) - hash + combined.charCodeAt(i);
+        hash |= 0;
+    }
+    const idx = Math.abs(hash) % AMBIENT_PALETTES.length;
+    return AMBIENT_PALETTES[idx];
+}
+
+function setAmbientTheme(r, g, b) {
+    const root = document.documentElement;
+    root.style.setProperty('--ambient-r', r);
+    root.style.setProperty('--ambient-g', g);
+    root.style.setProperty('--ambient-b', b);
+    root.style.setProperty('--ambient-color', `rgb(${r}, ${g}, ${b})`);
+    root.style.setProperty('--ambient-glow', `rgba(${r}, ${g}, ${b}, 0.45)`);
+
+    const player = document.getElementById('playerContainer');
+    if (player) {
+        player.style.boxShadow = `0 -14px 55px rgba(${r}, ${g}, ${b}, 0.38), 0 -1px 0 rgba(${r}, ${g}, ${b}, 0.3)`;
+        player.style.borderTopColor = `rgba(${r}, ${g}, ${b}, 0.38)`;
+    }
+
+    const iconWrap = document.getElementById('nowPlayingIconWrap');
+    if (iconWrap) {
+        iconWrap.style.boxShadow = `0 0 24px rgba(${r}, ${g}, ${b}, 0.5)`;
+        iconWrap.style.borderColor = `rgba(${r}, ${g}, ${b}, 0.45)`;
+    }
+
+    // Dynamic wave bars tint
+    const waves = document.querySelectorAll('#equalizerWave span');
+    waves.forEach(w => {
+        w.style.background = `rgb(${r}, ${g}, ${b})`;
+        w.style.boxShadow = `0 0 8px rgba(${r}, ${g}, ${b}, 0.7)`;
+    });
+}
+
+function applyDynamicAmbientGlow(imgSrc, title, artist) {
+    if (!imgSrc) {
+        const c = getHarmonicColor(title, artist);
+        setAmbientTheme(c.r, c.g, c.b);
+        return;
+    }
+
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.src = imgSrc;
+
+    img.onload = function() {
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = 20;
+            canvas.height = 20;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, 20, 20);
+
+            const imgData = ctx.getImageData(0, 0, 20, 20).data;
+            let rTotal = 0, gTotal = 0, bTotal = 0, validPixels = 0;
+
+            for (let i = 0; i < imgData.length; i += 4) {
+                const r = imgData[i];
+                const g = imgData[i + 1];
+                const b = imgData[i + 2];
+                const lum = (r * 299 + g * 587 + b * 114) / 1000;
+
+                if (lum > 35 && lum < 225) {
+                    rTotal += r;
+                    gTotal += g;
+                    bTotal += b;
+                    validPixels++;
+                }
+            }
+
+            if (validPixels > 0) {
+                const avgR = Math.round(rTotal / validPixels);
+                const avgG = Math.round(gTotal / validPixels);
+                const avgB = Math.round(bTotal / validPixels);
+                setAmbientTheme(avgR, avgG, avgB);
+            } else {
+                const c = getHarmonicColor(title, artist);
+                setAmbientTheme(c.r, c.g, c.b);
+            }
+        } catch (e) {
+            // Safe fallback if canvas is tainted by CORS
+            const c = getHarmonicColor(title, artist);
+            setAmbientTheme(c.r, c.g, c.b);
+        }
+    };
+
+    img.onerror = function() {
+        const c = getHarmonicColor(title, artist);
+        setAmbientTheme(c.r, c.g, c.b);
+    };
+}
+
+// ==========================================
+// 🌙 SLEEP TIMER IMPLEMENTATION
+// ==========================================
+
+function openSleepTimerModal() {
+    const modal = document.getElementById('sleepTimerModal');
+    if (modal) modal.style.display = 'flex';
+    updateSleepTimerUI();
+}
+
+function closeSleepTimerModal() {
+    const modal = document.getElementById('sleepTimerModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function setSleepTimer(minutesOrMode) {
+    if (minutesOrMode === 'end-of-song') {
+        if (!currentSongMeta.track) {
+            showToast('Please play a song first', 'fa-exclamation-circle');
+            return;
+        }
+        clearInterval(sleepTimerInterval);
+        sleepTimerMode = 'end-of-song';
+        sleepTimerEndTime = null;
+        isSleepFading = false;
+        
+        updateSleepTimerUI();
+        closeSleepTimerModal();
+        showToast('Audio will stop after this song', 'fa-moon');
+        return;
+    }
+
+    const mins = parseInt(minutesOrMode);
+    if (isNaN(mins) || mins <= 0) return;
+
+    clearInterval(sleepTimerInterval);
+    sleepTimerMode = 'minutes';
+    sleepTimerEndTime = Date.now() + mins * 60 * 1000;
+    isSleepFading = false;
+    sleepOriginalVolume = null;
+
+    updateSleepTimerUI();
+    closeSleepTimerModal();
+    showToast(`Sleep timer set for ${mins} mins`, 'fa-moon');
+
+    sleepTimerInterval = setInterval(() => {
+        if (!sleepTimerEndTime) return;
+        const remaining = sleepTimerEndTime - Date.now();
+        if (remaining <= 0) {
+            finishSleepTimer();
+        } else {
+            // If <= 15s remaining, smoothly fade out volume
+            if (remaining <= 15000 && !isSleepFading) {
+                isSleepFading = true;
+                fadeOutAudioForSleep(remaining);
+            }
+            updateSleepTimerUI();
+        }
+    }, 1000);
+}
+
+function setCustomSleepTimer() {
+    const input = document.getElementById('customSleepInput');
+    if (!input) return;
+    const mins = parseInt(input.value);
+    if (!mins || mins < 1 || mins > 360) {
+        showToast('Enter minutes between 1 and 360', 'fa-exclamation-circle');
+        return;
+    }
+    setSleepTimer(mins);
+    input.value = '';
+}
+
+function cancelSleepTimer() {
+    clearInterval(sleepTimerInterval);
+    sleepTimerInterval = null;
+    sleepTimerEndTime = null;
+    sleepTimerMode = null;
+    isSleepFading = false;
+
+    // Restore volume if cancelled during fade
+    if (sleepOriginalVolume !== null) {
+        if (activePlayerType === 'saavn') audioPlayer.volume = sleepOriginalVolume;
+        const vBar = document.getElementById('volumeBar');
+        if (vBar) vBar.value = Math.round(sleepOriginalVolume * 100);
+        sleepOriginalVolume = null;
+    }
+
+    updateSleepTimerUI();
+    showToast('Sleep timer turned OFF', 'fa-moon');
+}
+
+function fadeOutAudioForSleep(totalRemainingMs) {
+    if (sleepOriginalVolume === null) {
+        sleepOriginalVolume = activePlayerType === 'saavn' ? audioPlayer.volume : 1;
+    }
+    const fadeSteps = 15;
+    const stepInterval = Math.max(200, Math.floor(totalRemainingMs / fadeSteps));
+    let step = 0;
+
+    const fadeTimer = setInterval(() => {
+        if (!sleepTimerMode) {
+            clearInterval(fadeTimer);
+            return;
+        }
+        step++;
+        const factor = Math.max(0, 1 - (step / fadeSteps));
+        const newVol = (sleepOriginalVolume || 1) * factor;
+
+        if (activePlayerType === 'saavn') {
+            audioPlayer.volume = Math.max(0, newVol);
+        } else if (activePlayerType === 'youtube' && ytPlayer && typeof ytPlayer.setVolume === 'function') {
+            try { ytPlayer.setVolume(Math.round(newVol * 100)); } catch (e) {}
+        }
+
+        if (step >= fadeSteps) {
+            clearInterval(fadeTimer);
+        }
+    }, stepInterval);
+}
+
+function finishSleepTimer() {
+    clearInterval(sleepTimerInterval);
+    sleepTimerInterval = null;
+    sleepTimerEndTime = null;
+    sleepTimerMode = null;
+    isSleepFading = false;
+
+    // Pause audio
+    if (activePlayerType === 'saavn') {
+        audioPlayer.pause();
+        if (sleepOriginalVolume !== null) {
+            audioPlayer.volume = sleepOriginalVolume;
+        }
+    } else if (activePlayerType === 'youtube' && ytPlayer && typeof ytPlayer.pauseVideo === 'function') {
+        try { ytPlayer.pauseVideo(); } catch (e) {}
+    }
+
+    const btn = document.getElementById('playPauseBtn');
+    if (btn) btn.className = 'fas fa-play';
+    const eq = document.getElementById('equalizerWave');
+    if (eq) eq.classList.add('paused');
+
+    updateSleepTimerUI();
+    showToast('Sleep timer ended. Goodnight! 🌙', 'fa-moon');
+}
+
+function updateSleepTimerUI() {
+    const sleepBtn = document.getElementById('sleepTimerBtn');
+    const sleepDot = document.getElementById('sleepActiveDot');
+    const banner = document.getElementById('sleepActiveBanner');
+    const countdown = document.getElementById('sleepCountdownDisplay');
+    const subhead = document.getElementById('sleepTimerSubhead');
+
+    if (!sleepTimerMode) {
+        if (sleepBtn) sleepBtn.classList.remove('active');
+        if (sleepDot) sleepDot.style.display = 'none';
+        if (banner) banner.style.display = 'none';
+        if (subhead) subhead.innerText = 'Turn off music automatically';
+        return;
+    }
+
+    if (sleepBtn) sleepBtn.classList.add('active');
+    if (sleepDot) sleepDot.style.display = 'block';
+
+    if (sleepTimerMode === 'end-of-song') {
+        if (banner) banner.style.display = 'flex';
+        if (countdown) countdown.innerText = 'End of Song';
+        if (subhead) subhead.innerText = 'Stopping after current track';
+    } else if (sleepTimerMode === 'minutes' && sleepTimerEndTime) {
+        const remainingSec = Math.max(0, Math.floor((sleepTimerEndTime - Date.now()) / 1000));
+        const mins = Math.floor(remainingSec / 60);
+        const secs = remainingSec % 60;
+        const timeFormatted = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+
+        if (banner) banner.style.display = 'flex';
+        if (countdown) countdown.innerText = timeFormatted;
+        if (subhead) subhead.innerText = `Stopping in ${timeFormatted}`;
+    }
+}
+
+// ==========================================
+// 🍞 SLEEK FLOATING TOAST NOTIFICATION
+// ==========================================
+
+function showToast(message, icon = 'fa-info-circle') {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = 'toast-item';
+    toast.innerHTML = `<i class="fas ${icon}"></i> <span>${message}</span>`;
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.classList.add('toast-leave');
+        setTimeout(() => {
+            if (toast.parentNode) toast.parentNode.removeChild(toast);
+        }, 300);
+    }, 2400);
 }
 

@@ -7,28 +7,33 @@
       "id": ""
     }
   ],
-  "likedAlbums": [
+  "likedAlbums": [],
+  "likedPlaylists": [
     {
-      "id": "1139549",
-      "title": "Aashiqui 2",
-      "artist": "Jeet Gannguli, Mithoon, Ankit Tiwari",
-      "image": "https://c.saavncdn.com/430/Aashiqui-2-Hindi-2013-500x500.jpg",
-      "songCount": 10
+      "id": "154546814",
+      "title": "90s Romance - Hindi",
+      "image": "https://c.saavncdn.com/editorial/90sRomanceHindi_20260302042658.jpg?bch=1788762631",
+      "count": 42
+    },
+    {
+      "id": "32049168",
+      "title": "Bollywood Bappa",
+      "image": "https://c.saavncdn.com/editorial/BollywoodBappa_20260908050242.jpg?bch=1788848491",
+      "count": 20
     }
   ],
-  "likedPlaylists": [],
   "customPlaylists": [
     {
-      "id": "pl_1789335088578_n5ep",
-      "name": "Night Vibes",
-      "description": "Chill tracks",
-      "createdAt": "2026-09-13T21:31:28.578Z",
-      "image": "https://c.saavncdn.com/500/Aashiqui-2-Hindi-2013-500x500.jpg",
+      "id": "pl_1789376736439_jtxs",
+      "name": "hello",
+      "description": "new",
+      "createdAt": "2026-09-14T09:05:36.439Z",
+      "image": "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60",
       "tracks": [
         {
-          "track": "Tum Hi Ho",
-          "artist": "Arijit Singh",
-          "image": "https://c.saavncdn.com/500/Aashiqui-2-Hindi-2013-500x500.jpg"
+          "track": "Tujhe Dekha To",
+          "artist": "Lata Mangeshkar, Kumar Sanu",
+          "image": ""
         }
       ]
     }
