@@ -247,7 +247,7 @@ app.get("/api/saavn/search", async (req, res) => {
     console.log(`🎶 JioSaavn searching for: ${rawQuery}`);
 
     async function fetchFromSaavn(q) {
-      const searchUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&cc=in&includeMetaTags=1&p=1&n=5&q=${encodeURIComponent(q)}`;
+      const searchUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&cc=in&includeMetaTags=1&p=1&n=20&q=${encodeURIComponent(q)}`;
       const searchRes = await fetch(searchUrl, {
         headers: {
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -271,7 +271,31 @@ app.get("/api/saavn/search", async (req, res) => {
       return res.status(404).json({ success: false, error: "Song not found on JioSaavn" });
     }
 
-    const song = searchData.results[0];
+    // Filter to songs that have playable audio streams
+    const playable = searchData.results.filter(s => !!(s.encrypted_media_url || (s.more_info && s.more_info.encrypted_media_url)));
+    const cleanTitle = rawQuery.replace(/\(.*?\)/g, "").replace(/\[.*?\]/g, "").replace(/['"]/g, "").trim().toLowerCase();
+
+    // Prioritize songs whose title matches, then sort by EARLIEST release year
+    // (Original movie soundtracks were released first, whereas marketing compilations come years later)
+    playable.sort((a, b) => {
+      const songA = (a.song || a.title || '').trim().toLowerCase();
+      const songB = (b.song || b.title || '').trim().toLowerCase();
+      const exactA = songA === cleanTitle || cleanTitle.startsWith(songA);
+      const exactB = songB === cleanTitle || cleanTitle.startsWith(songB);
+
+      if (exactA && !exactB) return -1;
+      if (!exactA && exactB) return 1;
+
+      // Earliest year wins (original film album)
+      const yrA = parseInt(a.year || (a.more_info && a.more_info.year) || 2099);
+      const yrB = parseInt(b.year || (b.more_info && b.more_info.year) || 2099);
+      if (yrA !== yrB) return yrA - yrB;
+
+      // Fallback: highest play count
+      return parseInt(b.play_count || 0) - parseInt(a.play_count || 0);
+    });
+
+    const song = playable.length > 0 ? playable[0] : searchData.results[0];
     const encUrl = song.encrypted_media_url || (song.more_info && song.more_info.encrypted_media_url);
 
     if (!encUrl) {
