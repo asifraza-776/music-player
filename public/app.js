@@ -2279,11 +2279,13 @@ async function playMusic(track, artist, index = -1, preloadedImage = '') {
     const eq = document.getElementById('equalizerWave');
     const downloadBtn = document.getElementById('downloadBtn');
     
-    currentSongMeta = { track, artist, image: preloadedImage || '', id: '', hasLyrics: false, streamUrl: '' };
+    const cleanTrack = decodeHtmlEntities(track || "");
+    const cleanArtist = decodeHtmlEntities(artist || "");
+    currentSongMeta = { track: cleanTrack, artist: cleanArtist, image: preloadedImage || '', id: '', hasLyrics: false, streamUrl: '' };
     updatePlayerLikeBtn();
     
-    titleElem.innerText = track || "Finding Song...";
-    artistElem.innerText = artist || "";
+    titleElem.innerText = cleanTrack || "Finding Song...";
+    artistElem.innerText = cleanArtist || "";
     player.style.display = 'block';
     updateCollectionActiveTrackState();
     
@@ -2291,7 +2293,7 @@ async function playMusic(track, artist, index = -1, preloadedImage = '') {
         thumbElem.src = preloadedImage;
         thumbElem.style.display = 'block';
         iconElem.style.display = 'none';
-        applyDynamicAmbientGlow(preloadedImage, track, artist);
+        applyDynamicAmbientGlow(preloadedImage, cleanTrack, cleanArtist);
     } else {
         thumbElem.style.display = 'none';
         iconElem.style.display = 'block';
@@ -2317,7 +2319,7 @@ async function playMusic(track, artist, index = -1, preloadedImage = '') {
     // Allow a brief moment for events to settle, then release the guard
     setTimeout(() => { isChangingSong = false; }, 300);
     
-    const searchQuery = `${track} ${artist || ''}`.trim();
+    const searchQuery = `${cleanTrack} ${cleanArtist}`.trim();
     
     // Step 1: JioSaavn Ad-Free 320kbps Stream
     try {
@@ -2326,8 +2328,12 @@ async function playMusic(track, artist, index = -1, preloadedImage = '') {
         
         if (saavnData.success && saavnData.streamUrl) {
             activePlayerType = 'saavn';
-            titleElem.innerText = saavnData.title || track;
-            artistElem.innerText = saavnData.artist || artist || "";
+            const finalTitle = decodeHtmlEntities(saavnData.title || cleanTrack);
+            const finalArtist = decodeHtmlEntities(saavnData.artist || cleanArtist || "");
+            currentSongMeta.track = finalTitle;
+            currentSongMeta.artist = finalArtist;
+            titleElem.innerText = finalTitle;
+            artistElem.innerText = finalArtist;
             
             // Prefer preloaded album/collection image if supplied, else use saavnData.image
             const chosenImage = preloadedImage || saavnData.image || '';
@@ -2374,18 +2380,22 @@ async function playMusic(track, artist, index = -1, preloadedImage = '') {
         
         if (data.success && data.videoId) {
             activePlayerType = 'youtube';
-            titleElem.innerText = track;
-            artistElem.innerText = artist || "";
+            const ytTitle = decodeHtmlEntities(track);
+            const ytArtist = decodeHtmlEntities(artist || "");
+            currentSongMeta.track = ytTitle;
+            currentSongMeta.artist = ytArtist;
+            titleElem.innerText = ytTitle;
+            artistElem.innerText = ytArtist;
             
             const ytImg = preloadedImage || `https://img.youtube.com/vi/${data.videoId}/hqdefault.jpg`;
             currentSongMeta.image = ytImg;
             thumbElem.src = ytImg;
             thumbElem.style.display = 'block';
             iconElem.style.display = 'none';
-            applyDynamicAmbientGlow(ytImg, track, artist);
+            applyDynamicAmbientGlow(ytImg, ytTitle, ytArtist);
             
             isChangingSong = false; // New song loaded via YouTube
-            updateMediaSession(track, artist || "", ytImg);
+            updateMediaSession(ytTitle, ytArtist, ytImg);
             initOrLoadPlayer(data.videoId);
         } else {
             isChangingSong = false;
@@ -2457,16 +2467,76 @@ function closeLyrics() {
 }
 
 function closePlayer() {
-    const player = document.getElementById('playerContainer');
+    // 1. Guard against error events or ended events auto-reconnecting in the background
+    isChangingSong = true;
+
+    // 2. Clear song metadata IMMEDIATELY so error retry logic is completely disabled
+    currentSongMeta = { track: '', artist: '', image: '', id: '', hasLyrics: false, streamUrl: '' };
+
+    // 3. Immediately pause and destroy active audio player stream
+    try {
+        audioPlayer.pause();
+        audioPlayer.currentTime = 0;
+        audioPlayer.removeAttribute('src');
+        audioPlayer.load(); // Cancels active HTTP network stream and clears background audio buffer
+    } catch (e) {}
+
+    // 4. Immediately stop YouTube player if active
+    if (ytPlayer) {
+        try {
+            if (typeof ytPlayer.stopVideo === 'function') ytPlayer.stopVideo();
+            if (typeof ytPlayer.pauseVideo === 'function') ytPlayer.pauseVideo();
+        } catch (e) {}
+    }
+
+    // 5. Clear MediaSession completely so phone lockscreen/notification background playback terminates
+    if ('mediaSession' in navigator) {
+        try {
+            navigator.mediaSession.playbackState = 'none';
+            navigator.mediaSession.metadata = null;
+        } catch (e) {}
+    }
+
+    // 6. Reset document title
+    document.title = 'MelodySphere | Free Ad-Free Music Discovery';
+
+    // 7. Reset Play/Pause button and Equalizer
+    setPlayPauseIcon(false);
     const eq = document.getElementById('equalizerWave');
     if (eq) eq.classList.add('paused');
-    audioPlayer.pause();
-    audioPlayer.src = "";
-    if (ytPlayer && typeof ytPlayer.stopVideo === 'function') {
-        try { ytPlayer.stopVideo(); } catch (e) {}
-    }
-    player.style.display = 'none';
+
+    // 8. Reset progress bar and timers
     stopProgressBar();
+    const bar = document.getElementById('progressBar');
+    if (bar) {
+        bar.value = 0;
+        updateSliderFill(bar, '#00f2fe');
+    }
+    const curTime = document.getElementById('currentTime');
+    if (curTime) curTime.innerText = '0:00';
+    const totTime = document.getElementById('totalTime');
+    if (totTime) totTime.innerText = '0:00';
+
+    // 9. Hide Player Container
+    const player = document.getElementById('playerContainer');
+    if (player) player.style.display = 'none';
+
+    // 10. Synchronize collection modal tracklist if open
+    updateCollectionActiveTrackState();
+
+    // 11. Clear sleep timer if running
+    if (sleepTimerInterval) {
+        clearInterval(sleepTimerInterval);
+        sleepTimerInterval = null;
+    }
+    sleepTimerEndTime = null;
+    sleepTimerMode = null;
+    updateSleepTimerUI();
+
+    // 12. Release isChangingSong guard
+    setTimeout(() => {
+        isChangingSong = false;
+    }, 200);
 }
 
 function toggleBio() {
@@ -2490,6 +2560,13 @@ function formatNumber(num) {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
     if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
     return num.toString();
+}
+
+function decodeHtmlEntities(text) {
+    if (!text || typeof text !== 'string') return text || '';
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = text;
+    return textarea.value;
 }
 
 function escapeHtml(text) {
@@ -3101,6 +3178,12 @@ function bindControlButtons() {
     bindAction(prevBtn, playPrevious);
     bindAction(nextBtn, playNext);
     bindAction(playerShuffle, toggleShuffle);
+
+    // 3. Player Close Buttons
+    const closeDesktop = document.getElementById('closePlayerDesktop') || document.querySelector('.close-player-desktop');
+    const closeMobile = document.getElementById('closePlayerMobile') || document.querySelector('.close-player-mobile');
+    bindAction(closeDesktop, closePlayer);
+    bindAction(closeMobile, closePlayer);
 }
 
 if (document.readyState === 'loading') {
