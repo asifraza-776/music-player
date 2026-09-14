@@ -51,10 +51,12 @@
                 <div id="artistSearch">
                     <div class="search-container">
                         <div class="search-box">
-                            <input type="text" id="artistInput" placeholder="Type artist name (e.g. Arijit Singh, Atif Aslam)...">
-                            <button class="mic-btn" onclick="startVoiceSearch('artistInput')" title="Speak to Search">
-                                <i class="fas fa-microphone"></i>
-                            </button>
+                            <div class="search-input-wrap">
+                                <input type="text" id="artistInput" placeholder="Type artist name (e.g. Arijit Singh, Atif Aslam)...">
+                                <button class="mic-btn" onclick="startVoiceSearch('artistInput')" title="Speak to Search">
+                                    <i class="fas fa-microphone"></i>
+                                </button>
+                            </div>
                             <button class="search-btn" onclick="searchArtist()"><i class="fas fa-search"></i> Search</button>
                         </div>
                     </div>
@@ -78,10 +80,12 @@
                 <div id="albumSearch" style="display: none;">
                     <div class="search-container">
                         <div class="search-box">
-                            <input type="text" id="albumInput" placeholder="Type album name (e.g. Aashiqui 2, Rockstar, Animal)...">
-                            <button class="mic-btn" onclick="startVoiceSearch('albumInput')" title="Speak to Search">
-                                <i class="fas fa-microphone"></i>
-                            </button>
+                            <div class="search-input-wrap">
+                                <input type="text" id="albumInput" placeholder="Type album name (e.g. Aashiqui 2, Rockstar, Animal)...">
+                                <button class="mic-btn" onclick="startVoiceSearch('albumInput')" title="Speak to Search">
+                                    <i class="fas fa-microphone"></i>
+                                </button>
+                            </div>
                             <button class="search-btn" onclick="searchAlbums()"><i class="fas fa-search"></i> Search Album</button>
                         </div>
                     </div>
@@ -90,10 +94,12 @@
                 <div id="playlistSearch" style="display: none;">
                     <div class="search-container">
                         <div class="search-box">
-                            <input type="text" id="playlistInput" placeholder="Type playlist keyword (e.g. Romantic, Lo-Fi, Party)...">
-                            <button class="mic-btn" onclick="startVoiceSearch('playlistInput')" title="Speak to Search">
-                                <i class="fas fa-microphone"></i>
-                            </button>
+                            <div class="search-input-wrap">
+                                <input type="text" id="playlistInput" placeholder="Type playlist keyword (e.g. Romantic, Lo-Fi, Party)...">
+                                <button class="mic-btn" onclick="startVoiceSearch('playlistInput')" title="Speak to Search">
+                                    <i class="fas fa-microphone"></i>
+                                </button>
+                            </div>
                             <button class="search-btn" onclick="searchPlaylists()"><i class="fas fa-search"></i> Search Playlist</button>
                         </div>
                     </div>

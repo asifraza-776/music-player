@@ -207,7 +207,7 @@ body::after {
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border-radius: 60px;
-    padding: 8px;
+    padding: 8px 8px 8px 15px;
     box-shadow: var(--glass-shadow);
     align-items: center;
     transition: all 0.3s;
@@ -216,6 +216,30 @@ body::after {
 .search-box:focus-within {
     border-color: rgba(0, 242, 254, 0.5);
     box-shadow: 0 0 25px rgba(0, 242, 254, 0.2);
+}
+
+.search-input-wrap {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    gap: 10px;
+}
+
+.search-input-wrap input {
+    flex: 1;
+    min-width: 0;
+    padding: 12px 10px;
+    background: transparent;
+    border: none;
+    color: var(--text-main);
+    font-size: 16px;
+    outline: none;
+    font-family: 'Poppins', sans-serif;
+}
+
+.search-input-wrap input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
 }
 
 .search-box.track-search-box {
@@ -246,21 +270,6 @@ body::after {
     font-size: 15px;
     outline: none;
     font-family: 'Poppins', sans-serif;
-}
-
-.search-box input {
-    flex: 1;
-    padding: 15px 25px;
-    background: transparent;
-    border: none;
-    color: var(--text-main);
-    font-size: 16px;
-    outline: none;
-    font-family: 'Poppins', sans-serif;
-}
-
-.search-box input::placeholder {
-    color: rgba(255, 255, 255, 0.4);
 }
 
 .mic-btn {
@@ -1869,40 +1878,82 @@ input[type="range"].custom-slider::-moz-range-thumb {
         width: 100% !important;
     }
 
-    /* Single Row Search Box: Input + Mic on side + Search Button */
+    /* Mobile Search Layout: Row 1 (Input + Mic), Row 2 (Search Button) */
     .search-box {
         display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
-        align-items: center !important;
-        padding: 4px 6px 4px 14px !important;
-        border-radius: 30px !important;
-        gap: 6px !important;
+        flex-direction: column !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        padding: 0 !important;
+        gap: 10px !important;
         width: 100% !important;
     }
 
-    .search-box input {
-        padding: 8px 4px !important;
-        font-size: 13px !important;
-        min-width: 0 !important;
-        flex: 1 !important;
+    .search-input-wrap {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        width: 100% !important;
+        background: var(--glass-bg) !important;
+        border: 1px solid var(--glass-border) !important;
+        backdrop-filter: blur(20px) !important;
+        -webkit-backdrop-filter: blur(20px) !important;
+        border-radius: 30px !important;
+        padding: 4px 6px 4px 16px !important;
+        box-shadow: var(--glass-shadow) !important;
+        gap: 8px !important;
+        box-sizing: border-box !important;
     }
 
-    .mic-btn {
-        width: 34px !important;
-        height: 34px !important;
-        min-width: 34px !important;
+    .search-input-wrap:focus-within {
+        border-color: rgba(0, 242, 254, 0.5) !important;
+        box-shadow: 0 0 20px rgba(0, 242, 254, 0.25) !important;
+    }
+
+    .search-input-wrap input {
+        flex: 1 !important;
+        min-width: 0 !important;
+        padding: 9px 0 !important;
         font-size: 13.5px !important;
+        background: transparent !important;
+        border: none !important;
+        outline: none !important;
+        color: var(--text-main) !important;
+    }
+
+    .search-input-wrap .mic-btn {
+        width: 36px !important;
+        height: 36px !important;
+        min-width: 36px !important;
+        font-size: 14px !important;
         flex-shrink: 0 !important;
+        background: rgba(0, 242, 254, 0.1) !important;
+        border: 1px solid rgba(0, 242, 254, 0.3) !important;
+        color: var(--neon-cyan) !important;
+        border-radius: 50% !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
         margin: 0 !important;
+        cursor: pointer !important;
     }
 
     .search-box button.search-btn {
-        padding: 8px 16px !important;
-        font-size: 12px !important;
-        border-radius: 20px !important;
-        white-space: nowrap !important;
-        flex-shrink: 0 !important;
+        width: 100% !important;
+        padding: 12px 20px !important;
+        font-size: 14px !important;
+        border-radius: 30px !important;
+        font-weight: 700 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 8px !important;
+        background: var(--neon-gradient) !important;
+        color: #000 !important;
+        box-shadow: 0 4px 15px rgba(0, 242, 254, 0.3) !important;
         margin: 0 !important;
     }
 
@@ -1912,7 +1963,10 @@ input[type="range"].custom-slider::-moz-range-thumb {
         flex-direction: column !important;
         padding: 12px !important;
         border-radius: 22px !important;
-        gap: 8px !important;
+        gap: 10px !important;
+        background: var(--glass-bg) !important;
+        border: 1px solid var(--glass-border) !important;
+        box-shadow: var(--glass-shadow) !important;
     }
 
     .track-input-row {
@@ -1924,36 +1978,47 @@ input[type="range"].custom-slider::-moz-range-thumb {
         background: rgba(255, 255, 255, 0.05) !important;
         border: 1px solid var(--glass-border) !important;
         border-radius: 25px !important;
-        padding: 2px 4px 2px 12px !important;
+        padding: 4px 6px 4px 14px !important;
+        box-sizing: border-box !important;
     }
 
     .track-input-row input {
         flex: 1 !important;
         min-width: 0 !important;
-        padding: 6px 0 !important;
-        font-size: 12.5px !important;
+        padding: 8px 0 !important;
+        font-size: 13px !important;
+        background: transparent !important;
+        border: none !important;
+        outline: none !important;
+        color: #fff !important;
     }
 
     .track-input-row .mic-btn {
-        width: 32px !important;
-        height: 32px !important;
-        min-width: 32px !important;
-        font-size: 13px !important;
+        width: 34px !important;
+        height: 34px !important;
+        min-width: 34px !important;
+        font-size: 13.5px !important;
+        background: rgba(0, 242, 254, 0.1) !important;
+        border: 1px solid rgba(0, 242, 254, 0.3) !important;
+        color: var(--neon-cyan) !important;
+        border-radius: 50% !important;
     }
 
     .track-search-box input#trackArtistInput {
         width: 100% !important;
-        padding: 8px 14px !important;
-        font-size: 12.5px !important;
+        padding: 10px 14px !important;
+        font-size: 13px !important;
         background: rgba(255, 255, 255, 0.05) !important;
         border: 1px solid var(--glass-border) !important;
         border-radius: 25px !important;
+        color: #fff !important;
+        box-sizing: border-box !important;
     }
 
     .track-search-box button.search-btn {
         width: 100% !important;
-        padding: 10px !important;
-        font-size: 13px !important;
+        padding: 12px !important;
+        font-size: 13.5px !important;
         border-radius: 25px !important;
     }
 
