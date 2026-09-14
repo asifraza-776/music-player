@@ -1,7 +1,11 @@
-const CACHE_NAME = 'melodysphere-v1';
+// MelodySphere PWA Service Worker (PWABuilder & Google Play Store Compliant)
+const CACHE_NAME = 'melodysphere-v2';
+const OFFLINE_PAGE = '/offline.html';
+
 const APP_SHELL = [
   '/',
   '/index.html',
+  '/offline.html',
   '/style.css',
   '/app.js',
   '/favicon.svg',
@@ -11,24 +15,24 @@ const APP_SHELL = [
   '/manifest.json'
 ];
 
-// Install Event - Pre-cache App Shell
+// Install: Pre-cache App Shell and Offline Fallback
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[ServiceWorker] Pre-caching app shell');
+      console.log('[ServiceWorker] Pre-caching offline fallback and app shell');
       return cache.addAll(APP_SHELL);
     }).then(() => self.skipWaiting())
   );
 });
 
-// Activate Event - Clean old caches
+// Activate: Clean up old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keyList) => {
       return Promise.all(
         keyList.map((key) => {
           if (key !== CACHE_NAME) {
-            console.log('[ServiceWorker] Removing old cache', key);
+            console.log('[ServiceWorker] Removing old cache:', key);
             return caches.delete(key);
           }
         })
@@ -37,16 +41,28 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch Event - Network first with cache fallback for HTML/Assets, ignore streams & APIs
+// Fetch: Handle navigation and assets
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Never cache audio streams or dynamic audio proxy
+  // Skip audio streams & proxy
   if (url.pathname.startsWith('/api/saavn/stream') || url.pathname.startsWith('/api/yt')) {
     return;
   }
 
-  // For static assets: Cache First, fallback to Network
+  // Handle HTML navigation (offline fallback page)
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(async () => {
+        const cache = await caches.open(CACHE_NAME);
+        const cachedOffline = await cache.match(OFFLINE_PAGE);
+        return cachedOffline || cache.match('/index.html');
+      })
+    );
+    return;
+  }
+
+  // For static assets: Stale-While-Revalidate
   if (
     event.request.destination === 'style' ||
     event.request.destination === 'script' ||
@@ -55,40 +71,20 @@ self.addEventListener('fetch', (event) => {
   ) {
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
-        if (cachedResponse) {
-          // Fetch fresh copy in background to update cache
-          fetch(event.request).then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
-              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse));
-            }
-          }).catch(() => {});
-          return cachedResponse;
-        }
-        return fetch(event.request).then((networkResponse) => {
+        const fetchPromise = fetch(event.request).then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
             const responseClone = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
           }
           return networkResponse;
-        });
+        }).catch(() => {});
+        return cachedResponse || fetchPromise;
       })
     );
     return;
   }
 
-  // For HTML / Navigation: Network First, fallback to Cache
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request).then((networkResponse) => {
-        const responseClone = networkResponse.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
-        return networkResponse;
-      }).catch(() => caches.match('/index.html'))
-    );
-    return;
-  }
-
-  // Default: pass through to network
+  // Default fetch
   event.respondWith(
     fetch(event.request).catch(() => caches.match(event.request))
   );

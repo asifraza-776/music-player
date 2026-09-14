@@ -1,15 +1,18 @@
 {
+  "id": "/",
   "name": "MelodySphere - Music & Streaming",
   "short_name": "MelodySphere",
-  "description": "Stream unlimited high-quality ad-free music, charts, playlists and lyrics.",
+  "description": "Stream unlimited high-quality ad-free music, charts, playlists and lyrics with MelodySphere.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait-primary",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "any",
   "background_color": "#0f0c29",
   "theme_color": "#0f0c29",
   "lang": "en",
-  "categories": ["music", "entertainment"],
+  "dir": "ltr",
+  "categories": ["music", "entertainment", "audio"],
   "icons": [
     {
       "src": "/icon-192.png",
@@ -34,6 +37,45 @@
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-desktop.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "MelodySphere Desktop Player & Charts"
+    },
+    {
+      "src": "/screenshot-mobile.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "MelodySphere Mobile Player & Discovery"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Search Music",
+      "short_name": "Search",
+      "description": "Search songs, artists, and albums",
+      "url": "/#search",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Explore Charts",
+      "short_name": "Charts",
+      "description": "Top global artists and trending hits",
+      "url": "/#charts",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "My Library",
+      "short_name": "Library",
+      "description": "View liked songs and playlists",
+      "url": "/#library",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }
