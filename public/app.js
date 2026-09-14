@@ -760,13 +760,13 @@ async function openAlbum(albumId, title, artist = '', image = '') {
     modal.style.display = 'flex';
 
     try {
-        const res = await fetch(`/api/saavn/album?id=${encodeURIComponent(albumId)}`);
+        const res = await fetch(`/api/saavn/album?id=${encodeURIComponent(albumId)}&title=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist)}`);
         const data = await res.json();
 
-        if (data.success && data.songs) {
+        if (data.success && data.songs && data.songs.length > 0) {
             activeCollection = {
                 type: 'album',
-                id: albumId,
+                id: data.id || albumId,
                 title: data.title || title,
                 subtitle: data.artist || artist,
                 image: data.image || image,
@@ -839,13 +839,13 @@ async function openPlaylist(playlistId, title, image = '') {
     modal.style.display = 'flex';
 
     try {
-        const res = await fetch(`/api/saavn/playlist?id=${encodeURIComponent(playlistId)}`);
+        const res = await fetch(`/api/saavn/playlist?id=${encodeURIComponent(playlistId)}&title=${encodeURIComponent(title)}`);
         const data = await res.json();
 
-        if (data.success && data.songs) {
+        if (data.success && data.songs && data.songs.length > 0) {
             activeCollection = {
                 type: 'playlist',
-                id: playlistId,
+                id: data.id || playlistId,
                 title: data.title || title,
                 subtitle: "Curated Playlist",
                 image: data.image || image,

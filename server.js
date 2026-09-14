@@ -567,17 +567,51 @@ app.get("/api/saavn/album/search", async (req, res) => {
 });
 
 // JioSaavn Get Album Details with all tracks
+// JioSaavn Get Album Details with all tracks (with dynamic fallback by title)
 app.get("/api/saavn/album", async (req, res) => {
   try {
     const albumId = req.query.id;
-    if (!albumId) return res.status(400).json({ error: "Missing album id" });
+    const title = req.query.title || "";
+    const artist = req.query.artist || "";
+    if (!albumId && !title) return res.status(400).json({ error: "Missing album id or title" });
 
-    const albumUrl = `https://www.jiosaavn.com/api.php?__call=content.getAlbumDetails&albumid=${encodeURIComponent(albumId)}&_format=json`;
-    const response = await fetch(albumUrl, {
-      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" }
-    });
-    const data = await response.json();
-    const rawSongs = data.list || data.songs || [];
+    let rawSongs = [];
+    let data = {};
+
+    if (albumId) {
+      try {
+        const albumUrl = `https://www.jiosaavn.com/api.php?__call=content.getAlbumDetails&albumid=${encodeURIComponent(albumId)}&_format=json`;
+        const response = await fetch(albumUrl, {
+          headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" }
+        });
+        data = await response.json();
+        rawSongs = data.list || data.songs || [];
+      } catch (e) {}
+    }
+
+    // Dynamic Fallback: If 0 songs and title provided, search JioSaavn for fresh album
+    if (rawSongs.length === 0 && title) {
+      console.log(`🔍 Album ID ${albumId} returned 0 tracks. Searching JioSaavn for "${title}"...`);
+      try {
+        const searchUrl = `https://www.jiosaavn.com/api.php?__call=search.getAlbumResults&q=${encodeURIComponent(title + (artist ? ' ' + artist : ''))}&_format=json&_marker=0&n=3&p=1&ctx=web6dot0`;
+        const sRes = await fetch(searchUrl, {
+          headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" }
+        });
+        const sData = await sRes.json();
+        if (sData.results && sData.results.length > 0) {
+          const freshId = sData.results[0].albumid;
+          const freshUrl = `https://www.jiosaavn.com/api.php?__call=content.getAlbumDetails&albumid=${encodeURIComponent(freshId)}&_format=json`;
+          const fRes = await fetch(freshUrl, {
+            headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" }
+          });
+          data = await fRes.json();
+          rawSongs = data.list || data.songs || [];
+        }
+      } catch (searchErr) {
+        console.warn("Album fallback search failed:", searchErr.message);
+      }
+    }
+
     const songs = rawSongs.map(s => ({
       id: s.id,
       title: s.title || s.song,
@@ -590,8 +624,8 @@ app.get("/api/saavn/album", async (req, res) => {
     res.json({
       success: true,
       id: data.albumid || albumId,
-      title: data.title || data.name,
-      artist: typeof data.artist === 'string' ? data.artist : (data.primary_artists || data.music || 'Various Artists'),
+      title: data.title || data.name || title,
+      artist: typeof data.artist === 'string' ? data.artist : (data.primary_artists || data.music || artist || 'Various Artists'),
       year: data.year,
       image: data.image ? data.image.replace("150x150", "500x500").replace("50x50", "500x500") : null,
       songs
@@ -624,18 +658,62 @@ app.get("/api/saavn/playlist/search", async (req, res) => {
   }
 });
 
-// JioSaavn Get Playlist Details with all tracks
+// JioSaavn Get Playlist Details with all tracks (with dynamic search fallback)
 app.get("/api/saavn/playlist", async (req, res) => {
   try {
     const playlistId = req.query.id;
-    if (!playlistId) return res.status(400).json({ error: "Missing playlist id" });
+    const title = req.query.title || "";
+    if (!playlistId && !title) return res.status(400).json({ error: "Missing playlist id or title" });
 
-    const plUrl = `https://www.jiosaavn.com/api.php?__call=playlist.getDetails&listid=${encodeURIComponent(playlistId)}&_format=json&_marker=0&ctx=web6dot0`;
-    const response = await fetch(plUrl, {
-      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" }
-    });
-    const data = await response.json();
-    const rawSongs = data.songs || data.list || [];
+    let rawSongs = [];
+    let data = {};
+
+    if (playlistId) {
+      try {
+        const plUrl = `https://www.jiosaavn.com/api.php?__call=playlist.getDetails&listid=${encodeURIComponent(playlistId)}&_format=json&_marker=0&ctx=web6dot0`;
+        const response = await fetch(plUrl, {
+          headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" }
+        });
+        data = await response.json();
+        rawSongs = data.songs || data.list || [];
+      } catch (e) {}
+    }
+
+    // Dynamic Fallback 1: If 0 songs and title provided, search JioSaavn for fresh playlist
+    if (rawSongs.length === 0 && title) {
+      console.log(`🔍 Playlist ID ${playlistId} returned 0 tracks. Searching JioSaavn for "${title}"...`);
+      try {
+        const searchUrl = `https://www.jiosaavn.com/api.php?__call=search.getPlaylistResults&q=${encodeURIComponent(title)}&_format=json&_marker=0&n=5&p=1&ctx=web6dot0`;
+        const sRes = await fetch(searchUrl, {
+          headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" }
+        });
+        const sData = await sRes.json();
+        if (sData.results && sData.results.length > 0) {
+          const freshId = sData.results[0].listid;
+          const freshPlUrl = `https://www.jiosaavn.com/api.php?__call=playlist.getDetails&listid=${encodeURIComponent(freshId)}&_format=json&_marker=0&ctx=web6dot0`;
+          const fRes = await fetch(freshPlUrl, {
+            headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" }
+          });
+          data = await fRes.json();
+          rawSongs = data.songs || data.list || [];
+        }
+      } catch (searchErr) {
+        console.warn("Playlist fallback search failed:", searchErr.message);
+      }
+    }
+
+    // Dynamic Fallback 2: If still 0 songs, search tracks directly matching title/mood
+    if (rawSongs.length === 0 && title) {
+      try {
+        const trackSearchUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&cc=in&includeMetaTags=1&p=1&n=25&q=${encodeURIComponent(title)}`;
+        const tRes = await fetch(trackSearchUrl, {
+          headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" }
+        });
+        const tData = await tRes.json();
+        rawSongs = tData.results || [];
+      } catch (tErr) {}
+    }
+
     const songs = rawSongs.map(s => ({
       id: s.id,
       title: s.title || s.song,
@@ -648,8 +726,8 @@ app.get("/api/saavn/playlist", async (req, res) => {
     res.json({
       success: true,
       id: data.listid || playlistId,
-      title: data.listname || data.title,
-      image: data.image ? data.image.replace("150x150", "500x500").replace("50x50", "500x500") : null,
+      title: data.listname || data.title || title,
+      image: data.image ? data.image.replace("150x150", "500x500").replace("50x50", "500x500") : (songs[0]?.image || null),
       count: songs.length,
       songs
     });
@@ -658,57 +736,54 @@ app.get("/api/saavn/playlist", async (req, res) => {
   }
 });
 
-// Featured / Curated Playlists & Trending Albums
+// Featured / Curated Playlists & Trending Albums (Fresh, verified working IDs & Images)
 app.get("/api/saavn/featured", async (req, res) => {
   try {
     const featuredPlaylists = [
-      { id: "1077703816", title: "Trending Bollywood Hits", image: "https://c.saavncdn.com/editorial/TrendingTodayHindi_20260305105234_500x500.jpg", count: 40, category: "Trending" },
-      { id: "154546814", title: "90s Romance - Hindi", image: "https://c.saavncdn.com/editorial/90sRomanceHindi_20260302042658_500x500.jpg", count: 45, category: "90s & 2000s" },
-      { id: "32049168", title: "Best of Arijit Singh", image: "https://c.saavncdn.com/editorial/BestofArijitSingh_20260216062758_500x500.jpg", count: 50, category: "Romance" },
-      { id: "82914101", title: "Punjabi Party Hits", image: "https://c.saavncdn.com/editorial/Let_sPlayPunjabiParty_20260302042658_500x500.jpg", count: 35, category: "Punjabi" },
-      { id: "159384592", title: "Lo-Fi Midnight Chill", image: "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=500&auto=format&fit=crop&q=60", count: 30, category: "Lo-Fi" },
-      { id: "110858205", title: "Romantic Melodies Hindi", image: "https://c.saavncdn.com/editorial/RomanticHitsHindi_20260302042658_500x500.jpg", count: 40, category: "Romance" },
-      { id: "48544505", title: "2000s Bollywood Nostalgia", image: "https://c.saavncdn.com/editorial/2000sNostalgiaHindi_20260216062758_500x500.jpg", count: 45, category: "90s & 2000s" },
-      { id: "108151241", title: "Punjabi Pop & Hip Hop", image: "https://c.saavncdn.com/editorial/PunjabiSwag_20260302042658_500x500.jpg", count: 35, category: "Punjabi" },
-      { id: "112648784", title: "Ultimate Party Mix Hindi", image: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500&auto=format&fit=crop&q=60", count: 35, category: "Party" },
-      { id: "113749214", title: "Heartbroken & Sad Melodies", image: "https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?w=500&auto=format&fit=crop&q=60", count: 40, category: "Sad Hits" },
-      { id: "114002624", title: "Spiritual & Devotional Peace", image: "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=500&auto=format&fit=crop&q=60", count: 30, category: "Devotional & Sufi" },
-      { id: "113894247", title: "Sufi & Soulful Magic", image: "https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=500&auto=format&fit=crop&q=60", count: 35, category: "Devotional & Sufi" },
-      { id: "114112948", title: "Acoustic & Unplugged Sessions", image: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60", count: 28, category: "Lo-Fi" },
-      { id: "113948752", title: "Late Night Long Drive", image: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=500&auto=format&fit=crop&q=60", count: 32, category: "Trending" },
-      { id: "112574163", title: "Workout High Energy Hits", image: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=500&auto=format&fit=crop&q=60", count: 30, category: "Party" },
-      { id: "107297314", title: "Monsoon & Rainy Chai Vibes", image: "https://images.unsplash.com/photo-1519692933481-e162a57d6721?w=500&auto=format&fit=crop&q=60", count: 30, category: "Romance" },
-      { id: "107567831", title: "Top 50 Hindi India", image: "https://c.saavncdn.com/editorial/Top50HindiIndia_20260305105234_500x500.jpg", count: 50, category: "Trending" },
-      { id: "114589234", title: "Golden Retro 70s & 80s", image: "https://images.unsplash.com/photo-1487180144351-b8472da7d491?w=500&auto=format&fit=crop&q=60", count: 40, category: "90s & 2000s" },
-      { id: "115289111", title: "Soulful Atif Aslam", image: "https://c.saavncdn.com/editorial/BestofAtifAslam_20260216062758_500x500.jpg", count: 35, category: "Romance" },
-      { id: "115982112", title: "Shreya Ghoshal Pure Melodies", image: "https://c.saavncdn.com/editorial/BestofShreyaGhoshal_20260216062758_500x500.jpg", count: 35, category: "Romance" },
-      { id: "116298114", title: "Sidhu Moose Wala Tribute", image: "https://images.unsplash.com/photo-1511735111819-9a3f7709049c?w=500&auto=format&fit=crop&q=60", count: 30, category: "Punjabi" },
-      { id: "117281992", title: "Desi Hip-Hop & Rap Revolution", image: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=500&auto=format&fit=crop&q=60", count: 35, category: "Party" }
+      { id: "47599074", title: "Trending Bollywood Hits", image: "https://c.saavncdn.com/editorial/NowTrending_20260423085344_500x500.jpg", count: 37, category: "Trending" },
+      { id: "154546814", title: "90s Romance - Hindi", image: "https://c.saavncdn.com/editorial/90sRomanceHindi_20260302042658_500x500.jpg", count: 42, category: "90s & 2000s" },
+      { id: "58057412", title: "Best of Arijit Singh", image: "https://c.saavncdn.com/editorial/Let_sPlayArijitSinghHindi_20240812070403_500x500.jpg", count: 50, category: "Romance" },
+      { id: "3958470", title: "Punjabi Party Hits", image: "https://c.saavncdn.com/editorial/PunjabiPartyHits_20260617050614_500x500.jpg", count: 36, category: "Punjabi" },
+      { id: "1079336813", title: "Lo-Fi Midnight Chill", image: "https://c.saavncdn.com/editorial/ChillMaaro-LoFiMix_20260403095103_500x500.jpg", count: 34, category: "Lo-Fi" },
+      { id: "1302033575", title: "Romantic Melodies Hindi", image: "https://c.saavncdn.com/editorial/RomanticHits2026Hindi_20260707083404_500x500.jpg", count: 20, category: "Romance" },
+      { id: "1167751270", title: "2000s Bollywood Nostalgia", image: "https://c.saavncdn.com/editorial/charts_Hindi2000s_156632_20240408061838_500x500.jpg", count: 100, category: "90s & 2000s" },
+      { id: "1302033253", title: "Punjabi Pop & Hip Hop", image: "https://c.saavncdn.com/editorial/HipHopHits2026Punjabi_20260707081504_500x500.jpg", count: 20, category: "Punjabi" },
+      { id: "79653434", title: "Ultimate Party Mix Hindi", image: "https://c.saavncdn.com/editorial/NonStopParty_20251226043305_500x500.jpg", count: 50, category: "Party" },
+      { id: "1214349427", title: "Heartbroken & Sad Melodies", image: "https://c.saavncdn.com/editorial/OldSadSongs_20240307040155_500x500.jpg", count: 22, category: "Sad Hits" },
+      { id: "1296588511", title: "Spiritual & Devotional Peace", image: "https://c.saavncdn.com/editorial/HindiDevotionalSongs_20251226083602_500x500.jpg", count: 20, category: "Devotional & Sufi" },
+      { id: "1262711873", title: "Sufi & Soulful Magic", image: "https://c.saavncdn.com/editorial/SufiHitsCarvaanSelect_20250718104134_500x500.jpg", count: 49, category: "Devotional & Sufi" },
+      { id: "1039524952", title: "Acoustic & Unplugged Sessions", image: "https://c.saavncdn.com/editorial/artist_selects-1039520512_20220317082925_500x500.jpg", count: 18, category: "Lo-Fi" },
+      { id: "1167751266", title: "Late Night Long Drive", image: "https://c.saavncdn.com/editorial/charts_Hindi1990s_136920_20240408061858_500x500.jpg", count: 100, category: "Trending" },
+      { id: "111163065", title: "Workout High Energy Hits", image: "https://c.saavncdn.com/editorial/Workout1Hour_20260622051759_500x500.jpg", count: 25, category: "Party" },
+      { id: "1264830656", title: "Monsoon & Rainy Chai Vibes", image: "https://c.saavncdn.com/editorial/MonsoonMoodsCarvaanSelect_20250625162244_500x500.jpg", count: 20, category: "Romance" },
+      { id: "1134543272", title: "Top 50 Hindi India", image: "https://c.saavncdn.com/editorial/Hindi-IndiaSuperhitsTop50_20260911054516_500x500.jpg", count: 50, category: "Trending" },
+      { id: "826644795", title: "Golden Retro 70s & 80s", image: "https://c.saavncdn.com/editorial/DecadeOfHeroes1980s_20240826084735_500x500.jpg", count: 20, category: "90s & 2000s" },
+      { id: "154589446", title: "Sidhu Moose Wala Tribute", image: "https://c.saavncdn.com/editorial/Let_sPlaySidhuMooseWalaPunjabi_20240807075915_500x500.jpg", count: 35, category: "Punjabi" },
+      { id: "1269193212", title: "Desi Hip-Hop & Rap Revolution", image: "https://c.saavncdn.com/editorial/ApneDesiGaaneCarvaanSelect_20251209091748_500x500.jpg", count: 27, category: "Party" }
     ];
 
     const trendingAlbums = [
-      { id: "1139549", title: "Aashiqui 2", artist: "Mithoon, Ankit Tiwari, Jeet Gannguli", year: "2013", category: "Romance", image: "https://c.saavncdn.com/500/Aashiqui-2-Hindi-2013-500x500.jpg" },
+      { id: "1139549", title: "Aashiqui 2", artist: "Jeet Gannguli, Mithoon, Ankit Tiwari", year: "2013", category: "Romance", image: "https://c.saavncdn.com/430/Aashiqui-2-Hindi-2013-500x500.jpg" },
       { id: "1045274", title: "Rockstar", artist: "A.R. Rahman", year: "2011", category: "Trending", image: "https://c.saavncdn.com/408/Rockstar-Hindi-2011-20221212023139-500x500.jpg" },
-      { id: "14285220", title: "Kabir Singh", artist: "Sachet-Parampara, Vishal Mishra, Mithoon", year: "2019", category: "Romance", image: "https://c.saavncdn.com/393/Kabir-Singh-Hindi-2019-20190614075009-500x500.jpg" },
-      { id: "1164998", title: "Yeh Jawaani Hai Deewani", artist: "Pritam", year: "2013", category: "Party", image: "https://c.saavncdn.com/712/Yeh-Jawaani-Hai-Deewani-Hindi-2013-500x500.jpg" },
-      { id: "50074128", title: "Animal", artist: "JAM8, Vishal Mishra, Manan Bhardwaj", year: "2023", category: "Trending", image: "https://c.saavncdn.com/023/ANIMAL-Hindi-2023-20231124191036-500x500.jpg" },
-      { id: "47970921", title: "Jawan", artist: "Anirudh Ravichander", year: "2023", category: "Trending", image: "https://c.saavncdn.com/849/Jawan-Hindi-2023-20230905183424-500x500.jpg" },
-      { id: "26830501", title: "Shershaah", artist: "Tanishk Bagchi, Jasleen Royal, B Praak", year: "2021", category: "Romance", image: "https://c.saavncdn.com/033/Shershaah-Original-Motion-Picture-Soundtrack--Hindi-2021-20210815181610-500x500.jpg" },
-      { id: "359871", title: "Dilwale Dulhania Le Jayenge", artist: "Jatin-Lalit", year: "1995", category: "90s & 2000s", image: "https://c.saavncdn.com/624/Dilwale-Dulhania-Le-Jayenge-Hindi-1995-20200924151745-500x500.jpg" },
-      { id: "1114545", title: "Jab We Met", artist: "Pritam, Sandesh Shandilya", year: "2007", category: "90s & 2000s", image: "https://c.saavncdn.com/068/Jab-We-Met-Hindi-2007-500x500.jpg" },
-      { id: "36605051", title: "Brahmastra Part One: Shiva", artist: "Pritam", year: "2022", category: "Romance", image: "https://c.saavncdn.com/264/Brahmastra-Original-Motion-Picture-Soundtrack-Hindi-2022-20221006180556-500x500.jpg" },
-      { id: "2100868", title: "Ae Dil Hai Mushkil", artist: "Pritam", year: "2016", category: "Sad Hits", image: "https://c.saavncdn.com/062/Ae-Dil-Hai-Mushkil-Deluxe-Edition-Hindi-2016-500x500.jpg" },
-      { id: "1038573", title: "Kal Ho Naa Ho", artist: "Shankar-Ehsaan-Loy", year: "2003", category: "90s & 2000s", image: "https://c.saavncdn.com/040/Kal-Ho-Naa-Ho-Hindi-2003-500x500.jpg" },
-      { id: "11611762", title: "Sanam Teri Kasam", artist: "Himesh Reshammiya", year: "2016", category: "Sad Hits", image: "https://c.saavncdn.com/974/Sanam-Teri-Kasam-Hindi-2016-500x500.jpg" },
-      { id: "32579124", title: "Gangubai Kathiawadi", artist: "Sanjay Leela Bhansali", year: "2022", category: "Trending", image: "https://c.saavncdn.com/604/Gangubai-Kathiawadi-Hindi-2022-20220218173516-500x500.jpg" },
-      { id: "39965825", title: "Pathaan", artist: "Vishal-Shekhar", year: "2023", category: "Party", image: "https://c.saavncdn.com/807/Pathaan-Hindi-2022-20221222104158-500x500.jpg" },
-      { id: "51147986", title: "Dunki", artist: "Pritam", year: "2023", category: "Romance", image: "https://c.saavncdn.com/584/Dunki-Hindi-2023-20231218171008-500x500.jpg" },
-      { id: "52677561", title: "Fighter", artist: "Vishal-Shekhar", year: "2024", category: "Party", image: "https://c.saavncdn.com/712/Fighter-Hindi-2024-20240123141014-500x500.jpg" },
-      { id: "56829112", title: "Stree 2", artist: "Sachin-Jigar", year: "2024", category: "Trending", image: "https://c.saavncdn.com/834/Stree-2-Hindi-2024-20240816151004-500x500.jpg" },
-      { id: "13679802", title: "Kesari", artist: "Arko, Tanishk Bagchi, Jasleen Royal", year: "2019", category: "Trending", image: "https://c.saavncdn.com/384/Kesari-Hindi-2019-20190318151522-500x500.jpg" },
-      { id: "4598712", title: "Sonu Ke Titu Ki Sweety", artist: "Zack Knight, Rochak Kohli, Yo Yo Honey Singh", year: "2018", category: "Party", image: "https://c.saavncdn.com/479/Sonu-Ke-Titu-Ki-Sweety-Hindi-2018-20180214-500x500.jpg" },
-      { id: "2348571", title: "Half Girlfriend", artist: "Mithoon, Tanishk Bagchi, Rishi Rich", year: "2017", category: "Romance", image: "https://c.saavncdn.com/132/Half-Girlfriend-Hindi-2017-500x500.jpg" },
-      { id: "2249764", title: "Raabta", artist: "Pritam, JAM8", year: "2017", category: "Romance", image: "https://c.saavncdn.com/581/Raabta-Hindi-2017-500x500.jpg" }
+      { id: "16188900", title: "Kabir Singh", artist: "Sachet-Parampara, Vishal Mishra, Mithoon", year: "2019", category: "Romance", image: "https://c.saavncdn.com/807/Kabir-Singh-Hindi-2019-20240131131003-500x500.jpg" },
+      { id: "1139559", title: "Yeh Jawaani Hai Deewani", artist: "Pritam", year: "2013", category: "Party", image: "https://c.saavncdn.com/440/Yeh-Jawaani-Hai-Deewani-2013-500x500.jpg" },
+      { id: "49986024", title: "ANIMAL", artist: "JAM8, Vishal Mishra, Manan Bhardwaj", year: "2023", category: "Trending", image: "https://c.saavncdn.com/092/ANIMAL-Hindi-2023-20260724191152-500x500.jpg" },
+      { id: "48037104", title: "Jawan", artist: "Anirudh Ravichander", year: "2023", category: "Trending", image: "https://c.saavncdn.com/047/Jawan-Hindi-2023-20230921190854-500x500.jpg" },
+      { id: "29060166", title: "Shershaah", artist: "Tanishk Bagchi, Jasleen Royal, B Praak", year: "2021", category: "Romance", image: "https://c.saavncdn.com/238/Shershaah-Original-Motion-Picture-Soundtrack--Hindi-2021-20210815181610-500x500.jpg" },
+      { id: "1120992", title: "Dilwale Dulhania Le Jayenge", artist: "Jatin-Lalit", year: "1995", category: "90s & 2000s", image: "https://c.saavncdn.com/588/Dilwale-Dulhania-Le-Jayenge-Hindi-1995-20171114-500x500.jpg" },
+      { id: "1031364", title: "Jab We Met", artist: "Pritam, Sandesh Sandilya", year: "2007", category: "90s & 2000s", image: "https://c.saavncdn.com/223/Jab-We-Met-Hindi-2007-20231016162009-500x500.jpg" },
+      { id: "38845390", title: "Brahmastra", artist: "Pritam, Amitabh Bhattacharya", year: "2022", category: "Romance", image: "https://c.saavncdn.com/871/Brahmastra-Original-Motion-Picture-Soundtrack-Hindi-2022-20221006155213-500x500.jpg" },
+      { id: "2597301", title: "Ae Dil Hai Mushkil", artist: "Pritam", year: "2016", category: "Sad Hits", image: "https://c.saavncdn.com/257/Ae-Dil-Hai-Mushkil-Hindi-2016-500x500.jpg" },
+      { id: "12606087", title: "Kal Ho Naa Ho", artist: "Shankar-Ehsaan-Loy", year: "2003", category: "90s & 2000s", image: "https://c.saavncdn.com/587/Kal-Ho-Naa-Ho-Hindi-2003-20190516130956-500x500.jpg" },
+      { id: "1129607", title: "Sanam Teri Kasam", artist: "Himesh Reshammiya", year: "2008", category: "Sad Hits", image: "https://c.saavncdn.com/689/Sanam-Teri-Kasam-Hindi-2008-20260820195719-500x500.jpg" },
+      { id: "32809777", title: "Gangubai Kathiawadi", artist: "Sanjay Leela Bhansali", year: "2022", category: "Trending", image: "https://c.saavncdn.com/544/Gangubai-Kathiawadi-Hindi-2022-20220217161339-500x500.jpg" },
+      { id: "41039709", title: "Pathaan", artist: "Vishal & Shekhar", year: "2022", category: "Party", image: "https://c.saavncdn.com/807/Pathaan-Hindi-2022-20221222104158-500x500.jpg" },
+      { id: "50592774", title: "Dunki", artist: "Pritam", year: "2023", category: "Romance", image: "https://c.saavncdn.com/139/Dunki-Hindi-2023-20231220211003-500x500.jpg" },
+      { id: "51763191", title: "Fighter", artist: "Vishal & Shekhar", year: "2024", category: "Party", image: "https://c.saavncdn.com/142/Fighter-Hindi-2024-20240701191023-500x500.jpg" },
+      { id: "57019500", title: "Stree 2", artist: "Sachin-Jigar", year: "2024", category: "Trending", image: "https://c.saavncdn.com/373/Stree-2-Hindi-2024-20240828083834-500x500.jpg" },
+      { id: "15233952", title: "Kesari", artist: "Tanishk Bagchi, Arko, Jasleen Royal", year: "2019", category: "Trending", image: "https://c.saavncdn.com/991/Kesari-Hindi-2019-20250617065847-500x500.jpg" },
+      { id: "10601320", title: "Half Girlfriend", artist: "Mithoon, Tanishk Bagchi", year: "2017", category: "Romance", image: "https://c.saavncdn.com/441/Half-Girlfriend-Hindi-2017-20180622-500x500.jpg" },
+      { id: "10660301", title: "Raabta", artist: "Pritam, JAM8", year: "2017", category: "Romance", image: "https://c.saavncdn.com/023/Raabta-Hindi-2017-500x500.jpg" }
     ];
 
     res.json({ success: true, playlists: featuredPlaylists, albums: trendingAlbums });
