@@ -1148,27 +1148,28 @@ body::after {
 }
 
 .close-player {
-    position: absolute;
-    top: 10px;
-    right: 16px;
     cursor: pointer;
     padding: 6px;
-    color: rgba(255,255,255,0.45);
+    color: rgba(255,255,255,0.4);
     font-size: 16px;
     transition: all 0.3s;
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 10;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
+    flex-shrink: 0;
 }
 
 .close-player:hover {
     color: var(--neon-pink);
-    background: rgba(255, 255, 255, 0.08);
     transform: rotate(90deg);
+}
+
+.close-player-mobile {
+    display: none !important;
+}
+
+.close-player-desktop {
+    display: flex !important;
 }
 
 /* Animated Equalizer Waves */
@@ -2715,8 +2716,6 @@ input[type="range"].custom-slider::-moz-range-thumb {
         align-items: center !important;
         gap: 8px !important;
         margin-bottom: 2px !important;
-        padding-right: 32px !important; /* Space to avoid overlapping close X button */
-        box-sizing: border-box !important;
     }
 
     .player-progress-wrap #progressBar {
@@ -2746,7 +2745,7 @@ input[type="range"].custom-slider::-moz-range-thumb {
         gap: 12px !important;
         width: 100% !important;
         max-width: 100% !important;
-        padding-right: 8px !important;
+        padding-right: 0 !important;
         box-sizing: border-box !important;
         justify-content: flex-start !important;
     }
@@ -2813,30 +2812,29 @@ input[type="range"].custom-slider::-moz-range-thumb {
         flex-shrink: 0 !important;
     }
 
-    /* Close Button: Positioned cleanly at top right corner of the player bar */
-    .close-player {
-        position: absolute !important;
-        top: 6px !important;
-        right: 10px !important;
-        font-size: 14px !important;
-        width: 26px !important;
-        height: 26px !important;
-        border-radius: 50% !important;
-        background: rgba(255, 255, 255, 0.08) !important;
-        color: rgba(255, 255, 255, 0.65) !important;
-        cursor: pointer !important;
-        z-index: 30 !important;
+    /* Hide desktop close button on mobile */
+    .close-player-desktop {
+        display: none !important;
+    }
+
+    /* Mobile Close Button: Neatly integrated inside .player-quick-actions in Tier 1 */
+    .close-player-mobile {
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        padding: 0 !important;
+        font-size: 15px !important;
+        padding: 4px 6px !important;
+        margin-left: 2px !important;
+        color: rgba(255, 255, 255, 0.45) !important;
+        cursor: pointer !important;
         transition: all 0.2s ease !important;
+        flex-shrink: 0 !important;
     }
 
-    .close-player:active {
-        background: rgba(255, 255, 255, 0.22) !important;
-        color: #fff !important;
-        transform: scale(0.92) !important;
+    .close-player-mobile:hover,
+    .close-player-mobile:active {
+        color: var(--neon-pink) !important;
+        transform: scale(1.15) !important;
     }
 
     /* Bottom Tier: Controls Cluster with 3 Main Playback Buttons in DEAD-CENTER */

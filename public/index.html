@@ -392,11 +392,6 @@
 
     <!-- Sticky Music Player -->
     <div id="playerContainer">
-        <!-- Close Player Button (Top-Right Corner) -->
-        <div class="close-player" onclick="closePlayer()" title="Close Player">
-            <i class="fas fa-times"></i>
-        </div>
-
         <div class="player-content">
             <!-- Full Width Progress Bar Row -->
             <div class="player-progress-wrap" id="mobileProgressRow">
@@ -424,6 +419,7 @@
                     <div class="player-quick-actions" style="display:flex; align-items:center; gap:8px; margin-left:4px; flex-shrink:0;">
                         <i class="far fa-heart" id="playerLikeBtn" onclick="toggleCurrentFavorite()" style="cursor:pointer; color:var(--text-muted); font-size:16px; transition:all 0.2s;" title="Like Song"></i>
                         <i class="fas fa-plus" id="playerAddToPlBtn" onclick="openAddToPlaylistFromPlayer()" style="cursor:pointer; color:var(--text-muted); font-size:14px; transition:all 0.2s;" title="Add to Playlist"></i>
+                        <i class="fas fa-times close-player close-player-mobile" onclick="closePlayer()" title="Close Player"></i>
                     </div>
                 </div>
                 
@@ -456,6 +452,9 @@
                         <div class="volume-control-wrap">
                             <i class="fas fa-volume-up" id="volumeIcon" onclick="toggleMute()" title="Mute/Unmute (M)"></i>
                             <input type="range" id="volumeBar" class="custom-slider" min="0" max="100" value="100" oninput="changeVolume()">
+                        </div>
+                        <div class="close-player close-player-desktop" onclick="closePlayer()" title="Close Player">
+                            <i class="fas fa-times"></i>
                         </div>
                     </div>
                 </div>
