@@ -1049,6 +1049,13 @@ body::after {
     flex: 1;
 }
 
+.player-left-tools {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-right: 8px;
+}
+
 /* ---- Main Playback Buttons (Shuffle / Prev / Play / Next / Repeat) - Perfectly Centered on Desktop ---- */
 .player-buttons {
     position: absolute;
@@ -2670,22 +2677,28 @@ input[type="range"].custom-slider::-moz-range-thumb {
     }
 
     /* Sticky Mobile Player (Refined compact bottom bar) */
+    /* Sticky Mobile Player (Refined 2-tier modern mobile bar) */
     #playerContainer {
-        padding: 6px 10px 10px 10px !important;
-        border-radius: 18px 18px 0 0 !important;
+        padding: 8px 12px 14px 12px !important;
+        border-radius: 20px 20px 0 0 !important;
         background: rgba(10, 8, 22, 0.98) !important;
+        backdrop-filter: blur(25px) !important;
+        -webkit-backdrop-filter: blur(25px) !important;
         position: fixed !important;
         bottom: 0 !important;
         left: 0 !important;
         width: 100% !important;
         z-index: 3000 !important;
+        border-top: 1px solid rgba(0, 242, 254, 0.18) !important;
+        box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.9), 0 -1px 0 rgba(0, 242, 254, 0.1) !important;
     }
 
     .player-content {
         display: flex !important;
         flex-direction: column !important;
-        gap: 4px !important;
+        gap: 5px !important;
         width: 100% !important;
+        max-width: 100% !important;
     }
 
     /* Row 1: Full-width progress bar */
@@ -2693,7 +2706,7 @@ input[type="range"].custom-slider::-moz-range-thumb {
         width: 100% !important;
         display: flex !important;
         align-items: center !important;
-        gap: 6px !important;
+        gap: 8px !important;
         margin-bottom: 2px !important;
     }
 
@@ -2704,55 +2717,76 @@ input[type="range"].custom-slider::-moz-range-thumb {
 
     .player-progress-wrap span {
         font-size: 9.5px !important;
+        color: rgba(255, 255, 255, 0.5) !important;
+        font-weight: 500 !important;
     }
 
-    /* Row 2: 2-Tier Spacious Mobile Player Layout (Song Info on Top, Controls on Bottom) */
+    /* Row 2: 2-Tier Mobile Layout (Top Tier = Song Info, Bottom Tier = Controls) */
     .player-main-row {
         position: relative !important;
         display: flex !important;
         flex-direction: column !important;
         width: 100% !important;
-        gap: 6px !important;
+        gap: 8px !important;
     }
 
-    /* Top Tier: Song Thumbnail, Title, Artist & Like / Add buttons (Full Width) */
+    /* Top Tier: Song Thumbnail on Far Left, Song Title & Artist Full Width */
     .now-playing {
         display: flex !important;
         align-items: center !important;
-        gap: 8px !important;
+        gap: 12px !important;
         width: 100% !important;
         max-width: 100% !important;
-        padding-right: 32px !important; /* Reserve room for close button */
+        padding-right: 32px !important; /* Space for close X button */
         box-sizing: border-box !important;
+        justify-content: flex-start !important;
     }
 
+    /* Thumbnail fixed on the far left */
     .now-playing-icon {
-        width: 38px !important;
-        height: 38px !important;
-        min-width: 38px !important;
-        border-radius: 8px !important;
-        font-size: 15px !important;
+        width: 44px !important;
+        height: 44px !important;
+        min-width: 44px !important;
+        max-width: 44px !important;
+        aspect-ratio: 1 / 1 !important;
+        border-radius: 10px !important;
+        margin: 0 !important;
         flex-shrink: 0 !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4) !important;
     }
 
+    .now-playing-icon img {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+        border-radius: 10px !important;
+        display: block !important;
+    }
+
+    /* Song Title and Artist have the entire width */
     .now-playing-info {
-        min-width: 0 !important;
         flex: 1 !important;
+        min-width: 0 !important;
         overflow: hidden !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
     }
 
     .now-playing-title {
-        font-size: 12.5px !important;
-        font-weight: 600 !important;
+        font-size: 14px !important;
+        font-weight: 700 !important;
+        color: #fff !important;
         white-space: nowrap !important;
         overflow: hidden !important;
         text-overflow: ellipsis !important;
         line-height: 1.3 !important;
+        letter-spacing: 0.2px !important;
     }
 
     .now-playing-artist {
-        font-size: 10.5px !important;
-        color: rgba(255, 255, 255, 0.55) !important;
+        font-size: 11.5px !important;
+        color: rgba(255, 255, 255, 0.6) !important;
         white-space: nowrap !important;
         overflow: hidden !important;
         text-overflow: ellipsis !important;
@@ -2763,76 +2797,56 @@ input[type="range"].custom-slider::-moz-range-thumb {
         display: none !important;
     }
 
+    .player-quick-actions {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        flex-shrink: 0 !important;
+    }
+
     /* Close Button: Positioned cleanly at top right of the player bar */
     .close-player {
         position: absolute !important;
         top: 0 !important;
         right: 0 !important;
-        font-size: 15px !important;
+        font-size: 16px !important;
         padding: 4px 6px !important;
         color: rgba(255, 255, 255, 0.5) !important;
         cursor: pointer !important;
         z-index: 10 !important;
     }
 
-    /* Bottom Tier: Utility Actions (Left) + Playback Controls (Right) */
+    /* Bottom Tier: Controls Cluster with 3 Main Playback Buttons in DEAD-CENTER */
     .player-actions-cluster {
         display: flex !important;
         align-items: center !important;
         justify-content: space-between !important;
         width: 100% !important;
-        padding-top: 5px !important;
+        position: relative !important;
+        padding-top: 6px !important;
+        min-height: 42px !important;
         border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
         margin: 0 !important;
+        box-sizing: border-box !important;
     }
 
-    /* Left Group: Feature buttons (Sleep Timer, Lyrics, Download) */
-    .player-right {
+    /* Left Side: Sleep Timer */
+    .player-left-tools {
         display: flex !important;
         align-items: center !important;
-        gap: 8px !important;
-        flex: none !important;
-        width: auto !important;
+        z-index: 3 !important;
     }
 
-    .volume-control-wrap {
-        display: none !important;
-    }
-
-    .player-action-btn {
-        width: 25px !important;
-        height: 25px !important;
-        font-size: 10.5px !important;
-        flex-shrink: 0 !important;
-        border: 1px solid rgba(255, 255, 255, 0.12) !important;
-        border-radius: 50% !important;
-        background: rgba(255, 255, 255, 0.05) !important;
-        color: rgba(255, 255, 255, 0.65) !important;
-        box-shadow: none !important;
-    }
-
-    .download-glow-btn {
-        background: rgba(255, 255, 255, 0.05) !important;
-        border: 1px solid rgba(255, 255, 255, 0.12) !important;
-        color: rgba(255, 255, 255, 0.65) !important;
-        box-shadow: none !important;
-    }
-
-    .lyrics-glow-btn {
-        background: rgba(255, 255, 255, 0.05) !important;
-        border: 1px solid rgba(255, 255, 255, 0.12) !important;
-        color: rgba(255, 255, 255, 0.65) !important;
-        box-shadow: none !important;
-    }
-
-    /* Right Group: Playback Controls (Shuffle, Prev, Play, Next, Repeat) */
+    /* DEAD-CENTER: 3 Playback Buttons (Prev, Play, Next) flanked by Shuffle & Repeat */
     .player-buttons {
-        position: static !important;
-        transform: none !important;
+        position: absolute !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
         display: flex !important;
         align-items: center !important;
-        gap: 13px !important;
-        flex: none !important;
+        justify-content: center !important;
+        gap: 15px !important;
+        z-index: 2 !important;
         border: none !important;
         padding: 0 !important;
         margin: 0 !important;
@@ -2840,20 +2854,49 @@ input[type="range"].custom-slider::-moz-range-thumb {
 
     .player-buttons .ctrl-sub-btn {
         font-size: 14.5px !important;
+        color: rgba(255, 255, 255, 0.6) !important;
         padding: 4px !important;
     }
 
     .player-buttons .ctrl-btn {
-        font-size: 17.5px !important;
-        color: rgba(255, 255, 255, 0.85) !important;
+        font-size: 19px !important;
+        color: rgba(255, 255, 255, 0.9) !important;
         padding: 4px 6px !important;
     }
 
     .player-buttons .main-play-btn {
-        font-size: 30px !important;
+        font-size: 32px !important;
         color: var(--neon-cyan) !important;
         padding: 2px 6px !important;
-        filter: drop-shadow(0 0 8px rgba(0, 242, 254, 0.6)) !important;
+        filter: drop-shadow(0 0 10px rgba(0, 242, 254, 0.7)) !important;
+    }
+
+    /* Right Side: Lyrics, Download */
+    .player-right {
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        z-index: 3 !important;
+        margin-left: auto !important;
+    }
+
+    .volume-control-wrap {
+        display: none !important;
+    }
+
+    .player-action-btn {
+        width: 27px !important;
+        height: 27px !important;
+        font-size: 11px !important;
+        flex-shrink: 0 !important;
+        border: 1px solid rgba(255, 255, 255, 0.14) !important;
+        border-radius: 50% !important;
+        background: rgba(255, 255, 255, 0.06) !important;
+        color: rgba(255, 255, 255, 0.7) !important;
+        box-shadow: none !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
     }
 
     /* Modals as Mobile Bottom-Sheets */
@@ -3029,73 +3072,6 @@ input[type="range"].custom-slider::-moz-range-thumb {
         height: 28px !important;
         min-width: 28px !important;
         font-size: 10px !important;
-    }
-
-    .now-playing {
-        max-width: 32% !important;
-        gap: 4px !important;
-    }
-
-    .now-playing-icon {
-        width: 30px !important;
-        height: 30px !important;
-        min-width: 30px !important;
-    }
-
-    .now-playing-title {
-        font-size: 10.5px !important;
-    }
-
-    .now-playing-artist {
-        font-size: 8.5px !important;
-    }
-
-    .player-actions-cluster {
-        width: 100% !important;
-        justify-content: space-between !important;
-        gap: 6px !important;
-    }
-
-    .player-right {
-        gap: 6px !important;
-    }
-
-    .player-action-btn {
-        width: 24px !important;
-        height: 24px !important;
-        font-size: 10px !important;
-    }
-
-    .player-buttons {
-        position: static !important;
-        transform: none !important;
-        display: flex !important;
-        align-items: center !important;
-        gap: 10px !important;
-        border: none !important;
-        padding: 0 !important;
-        margin: 0 !important;
-    }
-
-    .player-buttons .ctrl-sub-btn {
-        font-size: 13.5px !important;
-        padding: 3px !important;
-    }
-
-    .player-buttons .ctrl-btn {
-        font-size: 16px !important;
-        padding: 3px 4px !important;
-    }
-
-    .player-buttons .main-play-btn {
-        font-size: 26px !important;
-        color: var(--neon-cyan) !important;
-        padding: 2px 4px !important;
-    }
-
-    .close-player {
-        font-size: 14px !important;
-        padding: 4px 6px !important;
     }
 
     .sleep-modal-card {
