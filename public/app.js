@@ -151,10 +151,14 @@ function updateLibraryCounters() {
 // 🧭 NAVIGATION & VIEWS
 // ==========================================
 
-function setActiveNav(index) {
-    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-    const btns = document.querySelectorAll('.nav-btn');
-    if (btns[index]) btns[index].classList.add('active');
+function setActiveNav(viewName) {
+    document.querySelectorAll('.nav-links .nav-btn').forEach(btn => {
+        if (btn.dataset.view === viewName) {
+            btn.classList.add('active');
+        } else if (btn.dataset.view) {
+            btn.classList.remove('active');
+        }
+    });
 }
 
 function hideAllViews() {
@@ -168,7 +172,7 @@ function showSearch() {
     currentView = 'search';
     hideAllViews();
     document.getElementById('searchView').style.display = 'block';
-    setActiveNav(0);
+    setActiveNav('search');
 }
 
 async function showExplore() {
@@ -176,7 +180,7 @@ async function showExplore() {
     hideAllViews();
     document.getElementById('exploreView').style.display = 'block';
     document.getElementById('results').style.display = 'none';
-    setActiveNav(1);
+    setActiveNav('explore');
     await loadExplore();
 }
 
@@ -185,7 +189,7 @@ async function showCharts() {
     hideAllViews();
     document.getElementById('chartsView').style.display = 'block';
     document.getElementById('results').style.display = 'none';
-    setActiveNav(2);
+    setActiveNav('charts');
     await loadCharts();
 }
 
@@ -194,9 +198,10 @@ function showLibrary() {
     hideAllViews();
     document.getElementById('libraryView').style.display = 'block';
     document.getElementById('results').style.display = 'none';
-    setActiveNav(3);
+    setActiveNav('library');
     renderLibrary();
 }
+
 
 // Legacy alias for compatibility
 function showFavorites() {

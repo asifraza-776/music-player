@@ -39,10 +39,10 @@
                 </div>
                 <div class="nav-links">
                     <button id="pwaInstallBtn" class="nav-btn" onclick="installPWA()" style="display:none; background: linear-gradient(135deg, #00f2fe, #4facfe); color:#030811; font-weight:700; border:none; box-shadow: 0 0 12px rgba(0,242,254,0.4);"><i class="fas fa-download"></i> Install App</button>
-                    <button class="nav-btn active" onclick="showSearch()"><i class="fas fa-search"></i> Search</button>
-                    <button class="nav-btn" onclick="showExplore()"><i class="fas fa-compass"></i> Explore</button>
-                    <button class="nav-btn" onclick="showCharts()"><i class="fas fa-chart-line"></i> Charts</button>
-                    <button class="nav-btn" onclick="showLibrary()"><i class="fas fa-heart"></i> Liked & Library</button>
+                    <button class="nav-btn active" data-view="search" onclick="showSearch()"><i class="fas fa-search"></i> Search</button>
+                    <button class="nav-btn" data-view="explore" onclick="showExplore()"><i class="fas fa-compass"></i> Explore</button>
+                    <button class="nav-btn" data-view="charts" onclick="showCharts()"><i class="fas fa-chart-line"></i> Charts</button>
+                    <button class="nav-btn" data-view="library" onclick="showLibrary()"><i class="fas fa-heart"></i> Liked & Library</button>
                 </div>
             </div>
         </div>
