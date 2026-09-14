@@ -2621,22 +2621,23 @@ input[type="range"].custom-slider::-moz-range-thumb {
     .player-buttons {
         display: flex !important;
         align-items: center !important;
-        gap: 14px !important;
+        gap: 18px !important;
         flex-shrink: 0 !important;
-        padding-right: 10px !important;
-        border-right: 1px solid rgba(255,255,255,0.12) !important; /* Separator line */
-        margin-right: 4px !important;
+        padding-right: 12px !important;
+        border-right: 1px solid rgba(255,255,255,0.15) !important; /* Separator line */
+        margin-right: 6px !important;
     }
 
     .player-buttons .ctrl-btn {
         font-size: 18px !important;
         color: rgba(255,255,255,0.85) !important;
-        padding: 0 !important;
+        padding: 6px 8px !important;
     }
 
     .player-buttons .main-play-btn {
         font-size: 28px !important;
         color: var(--neon-cyan) !important;
+        padding: 6px 8px !important;
         filter: drop-shadow(0 0 8px rgba(0, 242, 254, 0.6)) !important;
     }
 
@@ -2878,35 +2879,45 @@ input[type="range"].custom-slider::-moz-range-thumb {
     }
 
     .player-actions-cluster {
-        gap: 3px !important;
+        gap: 8px !important;
     }
 
     .player-buttons {
-        gap: 5px !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 16px !important;
+        padding-right: 10px !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.15) !important;
+        margin-right: 4px !important;
     }
 
     .player-buttons .main-play-btn {
-        font-size: 28px !important;
+        font-size: 26px !important;
+        color: var(--neon-cyan) !important;
+        padding: 6px 8px !important;
     }
 
     .player-buttons .ctrl-btn {
-        font-size: 14px !important;
+        font-size: 17px !important;
+        padding: 6px 6px !important;
     }
 
     .player-right {
-        gap: 2px !important;
+        gap: 6px !important;
     }
 
     .player-action-btn {
-        width: 26px !important;
-        height: 26px !important;
-        font-size: 10.5px !important;
+        width: 28px !important;
+        height: 28px !important;
+        font-size: 11px !important;
     }
 
     .close-player {
-        font-size: 12px !important;
+        font-size: 13px !important;
+        padding: 4px !important;
     }
 }
+
 
 
 
