@@ -2905,13 +2905,14 @@ input[type="range"].custom-slider::-moz-range-thumb {
     /* DEAD-CENTER: 3 Playback Buttons (Prev, Play, Next) flanked by Shuffle & Repeat */
     .player-buttons {
         position: absolute !important;
+        top: 50% !important;
         left: 50% !important;
-        transform: translateX(-50%) !important;
+        transform: translate(-50%, -50%) !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        gap: 15px !important;
-        z-index: 30 !important;
+        gap: 8px !important;
+        z-index: 60 !important;
         border: none !important;
         padding: 0 !important;
         margin: 0 !important;
@@ -2924,23 +2925,35 @@ input[type="range"].custom-slider::-moz-range-thumb {
     }
 
     .player-buttons .ctrl-sub-btn {
-        font-size: 14.5px !important;
+        font-size: 15px !important;
         color: rgba(255, 255, 255, 0.6) !important;
-        padding: 6px !important;
+        width: 34px !important;
+        height: 34px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
         cursor: pointer !important;
     }
 
     .player-buttons .ctrl-btn {
-        font-size: 19px !important;
+        font-size: 20px !important;
         color: rgba(255, 255, 255, 0.9) !important;
-        padding: 6px 8px !important;
+        width: 42px !important;
+        height: 42px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
         cursor: pointer !important;
     }
 
     .player-buttons .main-play-btn {
         font-size: 32px !important;
         color: var(--neon-cyan) !important;
-        padding: 4px 8px !important;
+        width: 48px !important;
+        height: 48px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
         filter: drop-shadow(0 0 10px rgba(0, 242, 254, 0.7)) !important;
         cursor: pointer !important;
     }

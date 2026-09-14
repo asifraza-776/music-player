@@ -2933,3 +2933,67 @@ function showToast(message, icon = 'fa-info-circle') {
     }, 2400);
 }
 
+// Bind explicit click and touch listeners to both Modal buttons & Player buttons
+function bindControlButtons() {
+    // 1. Playlist / Album Modal Buttons
+    const playAllBtn = document.getElementById('collectionPlayAllBtn');
+    const shuffleBtn = document.getElementById('collectionShuffleBtn');
+    const likeBtn = document.getElementById('collectionLikeBtn');
+
+    if (playAllBtn) {
+        playAllBtn.onclick = (e) => {
+            if (e) e.stopPropagation();
+            playCurrentCollection(false);
+        };
+    }
+    if (shuffleBtn) {
+        shuffleBtn.onclick = (e) => {
+            if (e) e.stopPropagation();
+            playCurrentCollection(true);
+        };
+    }
+    if (likeBtn) {
+        likeBtn.onclick = (e) => {
+            if (e) e.stopPropagation();
+            toggleCurrentCollectionLike();
+        };
+    }
+
+    // 2. Main Playback Controls
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const prevBtn = document.querySelector('.player-buttons .fa-step-backward');
+    const nextBtn = document.querySelector('.player-buttons .fa-step-forward');
+    const playerShuffle = document.getElementById('shuffleBtn');
+
+    if (playPauseBtn) {
+        playPauseBtn.onclick = (e) => {
+            if (e) e.stopPropagation();
+            togglePlay();
+        };
+    }
+    if (prevBtn) {
+        prevBtn.onclick = (e) => {
+            if (e) e.stopPropagation();
+            playPrevious();
+        };
+    }
+    if (nextBtn) {
+        nextBtn.onclick = (e) => {
+            if (e) e.stopPropagation();
+            playNext();
+        };
+    }
+    if (playerShuffle) {
+        playerShuffle.onclick = (e) => {
+            if (e) e.stopPropagation();
+            toggleShuffle();
+        };
+    }
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindControlButtons);
+} else {
+    bindControlButtons();
+}
+
