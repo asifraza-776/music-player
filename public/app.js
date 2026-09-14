@@ -2236,3 +2236,51 @@ function initVoiceSearch() {
     };
 }
 
+// ==========================================
+// 📲 PWA INSTALLATION & SERVICE WORKER
+// ==========================================
+let deferredPwaPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPwaPrompt = e;
+    const installBtn = document.getElementById('pwaInstallBtn');
+    if (installBtn) {
+        installBtn.style.display = 'inline-flex';
+    }
+    console.log('[PWA] beforeinstallprompt captured, install button ready');
+});
+
+window.addEventListener('appinstalled', () => {
+    deferredPwaPrompt = null;
+    const installBtn = document.getElementById('pwaInstallBtn');
+    if (installBtn) installBtn.style.display = 'none';
+    console.log('[PWA] MelodySphere was installed successfully!');
+});
+
+async function installPWA() {
+    if (!deferredPwaPrompt) {
+        alert('To install MelodySphere, tap your browser menu (three dots ⋮) and select "Install app" or "Add to Home screen".');
+        return;
+    }
+    deferredPwaPrompt.prompt();
+    const { outcome } = await deferredPwaPrompt.userChoice;
+    console.log(`[PWA] Install prompt result: ${outcome}`);
+    deferredPwaPrompt = null;
+    const installBtn = document.getElementById('pwaInstallBtn');
+    if (installBtn) installBtn.style.display = 'none';
+}
+
+// Register Service Worker for PWA
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+            .then((reg) => {
+                console.log('[PWA] Service Worker registered with scope:', reg.scope);
+            })
+            .catch((err) => {
+                console.warn('[PWA] Service Worker registration failed:', err);
+            });
+    });
+}
+
