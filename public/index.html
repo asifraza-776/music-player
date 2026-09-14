@@ -62,15 +62,15 @@
                 
                 <div id="trackSearch" style="display: none;">
                     <div class="search-container">
-                        <div class="search-box track-search-box" style="flex-direction: column; padding: 20px;">
-                            <div style="display:flex; width:100%; align-items:center;">
-                                <input type="text" id="trackInput" placeholder="Enter track name..." value="" style="margin-right:10px;">
+                        <div class="search-box track-search-box">
+                            <div class="track-input-row">
+                                <input type="text" id="trackInput" placeholder="Enter track name...">
                                 <button class="mic-btn" onclick="startVoiceSearch('trackInput')" title="Speak to Search">
                                     <i class="fas fa-microphone"></i>
                                 </button>
                             </div>
-                            <input type="text" id="trackArtistInput" placeholder="Artist name (optional)" value="" style="width:100%;">
-                            <button class="search-btn" onclick="searchTrack()" style="width:100%; margin-top:10px; border-radius:15px;"><i class="fas fa-search"></i> Search Track</button>
+                            <input type="text" id="trackArtistInput" placeholder="Artist name (optional)">
+                            <button class="search-btn" onclick="searchTrack()"><i class="fas fa-search"></i> Search Track</button>
                         </div>
                     </div>
                 </div>
@@ -266,16 +266,16 @@
                 <h3 style="font-size:18px; font-weight:700; color:#fff;"><i class="fas fa-plus-circle" style="color:var(--neon-cyan)"></i> New Playlist</h3>
                 <i class="fas fa-times close-modal" onclick="closeCreatePlaylistModal()"></i>
             </div>
-            <div class="modal-body" style="padding:20px;">
+            <div class="modal-body" style="padding:20px; text-align:left;">
                 <div style="margin-bottom:15px;">
-                    <label style="display:block; font-size:13px; color:var(--text-muted); margin-bottom:6px;">Playlist Name</label>
-                    <input type="text" id="newPlaylistName" placeholder="e.g. My Favorites, Gym Energy..." style="width:100%; padding:12px 16px; background:rgba(255,255,255,0.06); border:1px solid var(--glass-border); border-radius:12px; color:#fff; font-size:14px; outline:none;">
+                    <label style="display:block; font-size:13px; font-weight:600; color:#fff; margin-bottom:8px; text-align:left;">Playlist Name</label>
+                    <input type="text" id="newPlaylistName" placeholder="e.g. My Favorites, Gym Energy..." style="width:100%; padding:12px 16px; background:rgba(255,255,255,0.06); border:1px solid var(--glass-border); border-radius:14px; color:#fff; font-size:14px; outline:none;">
                 </div>
-                <div style="margin-bottom:20px;">
-                    <label style="display:block; font-size:13px; color:var(--text-muted); margin-bottom:6px;">Description (Optional)</label>
-                    <input type="text" id="newPlaylistDesc" placeholder="e.g. Best tracks for late night chill" style="width:100%; padding:12px 16px; background:rgba(255,255,255,0.06); border:1px solid var(--glass-border); border-radius:12px; color:#fff; font-size:14px; outline:none;">
+                <div style="margin-bottom:22px;">
+                    <label style="display:block; font-size:13px; font-weight:600; color:#fff; margin-bottom:8px; text-align:left;">Description (Optional)</label>
+                    <input type="text" id="newPlaylistDesc" placeholder="e.g. Best tracks for late night chill" style="width:100%; padding:12px 16px; background:rgba(255,255,255,0.06); border:1px solid var(--glass-border); border-radius:14px; color:#fff; font-size:14px; outline:none;">
                 </div>
-                <button class="search-btn" onclick="submitCreatePlaylist()" style="width:100%; border-radius:15px; padding:12px;">
+                <button class="search-btn" onclick="submitCreatePlaylist()" style="width:100%; border-radius:25px; padding:12px 20px; font-weight:700;">
                     <i class="fas fa-check"></i> Create & Save
                 </button>
             </div>
