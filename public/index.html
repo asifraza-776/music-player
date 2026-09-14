@@ -3,10 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MelodySphere - Ultimate Music Discovery</title>
+    <title>MelodySphere - Stream Free Music & Playlists</title>
+    
+    <!-- Favicon & App Icon -->
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="apple-touch-icon" href="favicon.svg">
     
     <!-- SEO Meta Tags -->
-    <meta name="description" content="Discover millions of songs, albums, and artists. Explore top charts and experience seamless music playback with MelodySphere.">
+    <meta name="description" content="Discover millions of songs, albums, and artists. Explore top charts and experience seamless ad-free music playback with MelodySphere.">
+    
+    <!-- Mobile & PWA Optimization -->
+    <meta name="theme-color" content="#0f0c29">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
     
     <!-- Fonts and Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -181,9 +191,9 @@
 
                 <!-- Library Tabs -->
                 <div class="search-tabs library-tabs">
-                    <button class="tab-btn active" id="libTabSongs" onclick="switchLibraryTab('songs')"><i class="fas fa-music"></i> Liked Songs (<span id="countLikedSongs">0</span>)</button>
-                    <button class="tab-btn" id="libTabAlbums" onclick="switchLibraryTab('albums')"><i class="fas fa-compact-disc"></i> Albums (<span id="countLikedAlbums">0</span>)</button>
-                    <button class="tab-btn" id="libTabPlaylists" onclick="switchLibraryTab('playlists')"><i class="fas fa-list"></i> Playlists (<span id="countLikedPlaylists">0</span>)</button>
+                    <button class="tab-btn active" id="libTabSongs" onclick="switchLibraryTab('songs')"><i class="fas fa-heart"></i> Liked Songs (<span id="countLikedSongs">0</span>)</button>
+                    <button class="tab-btn" id="libTabAlbums" onclick="switchLibraryTab('albums')"><i class="fas fa-compact-disc"></i> Saved Albums (<span id="countLikedAlbums">0</span>)</button>
+                    <button class="tab-btn" id="libTabPlaylists" onclick="switchLibraryTab('playlists')"><i class="fas fa-bookmark"></i> Saved Playlists (<span id="countLikedPlaylists">0</span>)</button>
                     <button class="tab-btn" id="libTabCustom" onclick="switchLibraryTab('custom')"><i class="fas fa-folder-plus"></i> My Playlists (<span id="countCustomPlaylists">0</span>)</button>
                 </div>
 
@@ -229,7 +239,7 @@
                                 <i class="fas fa-random"></i> Shuffle
                             </button>
                             <button class="tab-btn" id="collectionLikeBtn" onclick="toggleCurrentCollectionLike()" style="padding:10px 18px; border-radius:25px;">
-                                <i class="far fa-heart"></i> Like
+                                <i class="far fa-bookmark"></i> Save to Library
                             </button>
                         </div>
                     </div>
@@ -267,21 +277,21 @@
 
     <!-- Create Playlist Modal -->
     <div id="createPlaylistModal" class="modal-overlay" style="display:none;" onclick="if(event.target === this) closeCreatePlaylistModal()">
-        <div class="modal-card" style="max-width:420px;">
+        <div class="modal-card create-pl-card" style="max-width:420px;">
             <div class="modal-header">
-                <h3 style="font-size:18px; font-weight:700; color:#fff;"><i class="fas fa-plus-circle" style="color:var(--neon-cyan)"></i> New Playlist</h3>
+                <h3 style="font-size:17px; font-weight:700; color:#fff; display:flex; align-items:center; gap:8px;"><i class="fas fa-plus-circle" style="color:var(--neon-cyan)"></i> New Playlist</h3>
                 <i class="fas fa-times close-modal" onclick="closeCreatePlaylistModal()"></i>
             </div>
             <div class="modal-body" style="padding:20px; text-align:left;">
-                <div style="margin-bottom:15px;">
-                    <label style="display:block; font-size:13px; font-weight:600; color:#fff; margin-bottom:8px; text-align:left;">Playlist Name</label>
-                    <input type="text" id="newPlaylistName" placeholder="e.g. My Favorites, Gym Energy..." style="width:100%; padding:12px 16px; background:rgba(255,255,255,0.06); border:1px solid var(--glass-border); border-radius:14px; color:#fff; font-size:14px; outline:none;">
+                <div class="modal-input-group">
+                    <label class="modal-label"><i class="fas fa-music"></i> Playlist Name</label>
+                    <input type="text" id="newPlaylistName" class="modal-input" placeholder="e.g. My Favorites, Gym Energy...">
                 </div>
-                <div style="margin-bottom:22px;">
-                    <label style="display:block; font-size:13px; font-weight:600; color:#fff; margin-bottom:8px; text-align:left;">Description (Optional)</label>
-                    <input type="text" id="newPlaylistDesc" placeholder="e.g. Best tracks for late night chill" style="width:100%; padding:12px 16px; background:rgba(255,255,255,0.06); border:1px solid var(--glass-border); border-radius:14px; color:#fff; font-size:14px; outline:none;">
+                <div class="modal-input-group">
+                    <label class="modal-label"><i class="fas fa-align-left"></i> Description (Optional)</label>
+                    <input type="text" id="newPlaylistDesc" class="modal-input" placeholder="e.g. Best tracks for late night chill">
                 </div>
-                <button class="search-btn" onclick="submitCreatePlaylist()" style="width:100%; border-radius:25px; padding:12px 20px; font-weight:700;">
+                <button class="modal-submit-btn" id="createPlaylistBtn" onclick="submitCreatePlaylist()">
                     <i class="fas fa-check"></i> Create & Save
                 </button>
             </div>

@@ -928,7 +928,7 @@ function renderCollectionTracklist(songs, isCustom = false, customPlId = '') {
                     </div>
                 </div>
                 <div class="track-actions" style="gap:10px;">
-                    <i class="${liked ? 'fas' : 'far'} fa-heart" onclick="toggleTrackLike('${escapeHtml(title)}', '${escapeHtml(artist)}'); event.stopPropagation();" style="color:${liked ? 'var(--neon-pink)' : 'var(--text-muted)'}; cursor:pointer; font-size:16px;" title="Like"></i>
+                    <i class="${liked ? 'fas' : 'far'} fa-heart" onclick="toggleTrackLike('${escapeHtml(title)}', '${escapeHtml(artist)}', '', this); event.stopPropagation();" style="color:${liked ? 'var(--neon-pink)' : 'var(--text-muted)'}; cursor:pointer; font-size:16px;" title="${liked ? 'Unlike Song' : 'Like Song'}"></i>
                     ${isCustom ? `
                         <i class="fas fa-trash" onclick="removeTrackFromCustomPlaylist('${customPlId}', ${idx}); event.stopPropagation();" style="color:var(--text-muted); cursor:pointer; font-size:14px;" title="Remove from Playlist" onmouseover="this.style.color='#ff0844'" onmouseout="this.style.color='var(--text-muted)'"></i>
                     ` : `
@@ -990,19 +990,24 @@ function updateCollectionLikeBtn() {
     }
     btn.style.display = 'inline-flex';
 
-    let liked = false;
-    if (activeCollection.type === 'album') {
-        liked = isAlbumLiked(activeCollection.id, activeCollection.title);
+    let saved = false;
+    const isAlb = activeCollection.type === 'album';
+    if (isAlb) {
+        saved = isAlbumLiked(activeCollection.id, activeCollection.title);
     } else if (activeCollection.type === 'playlist') {
-        liked = isPlaylistLiked(activeCollection.id, activeCollection.title);
+        saved = isPlaylistLiked(activeCollection.id, activeCollection.title);
     }
 
-    if (liked) {
-        btn.innerHTML = `<i class="fas fa-heart" style="color:var(--neon-pink)"></i> Liked`;
-        btn.style.borderColor = "var(--neon-pink)";
+    const typeLabel = isAlb ? 'Album' : 'Playlist';
+
+    if (saved) {
+        btn.innerHTML = `<i class="fas fa-bookmark" style="color:var(--neon-cyan)"></i> Saved ${typeLabel}`;
+        btn.style.borderColor = "var(--neon-cyan)";
+        btn.style.color = "var(--neon-cyan)";
     } else {
-        btn.innerHTML = `<i class="far fa-heart"></i> Like`;
+        btn.innerHTML = `<i class="far fa-bookmark"></i> Save ${typeLabel}`;
         btn.style.borderColor = "var(--glass-border)";
+        btn.style.color = "var(--text-main)";
     }
 }
 
@@ -1054,22 +1059,31 @@ function isPlaylistLiked(id, title) {
     );
 }
 
-async function toggleTrackLike(track, artist, image = '') {
+async function toggleTrackLike(track, artist, image = '', el = null) {
     const idx = (userLibrary.likedTracks || []).findIndex(t =>
         t.track.toLowerCase() === track.toLowerCase() &&
         t.artist.toLowerCase() === (artist || '').toLowerCase()
     );
 
+    let isLikedNow = false;
     if (idx > -1) {
         userLibrary.likedTracks.splice(idx, 1);
+        isLikedNow = false;
     } else {
         userLibrary.likedTracks.unshift({ track, artist, image });
+        isLikedNow = true;
+    }
+
+    if (el) {
+        el.className = isLikedNow ? 'fas fa-heart' : 'far fa-heart';
+        el.style.color = isLikedNow ? 'var(--neon-pink)' : 'var(--text-muted)';
+        el.title = isLikedNow ? 'Unlike Song' : 'Like Song';
     }
 
     saveLocalLibrary();
     updatePlayerLikeBtn();
 
-    if (currentView === 'library') renderLibrary();
+    if (currentView === 'library' && currentLibraryTab === 'songs') renderLibrary();
 
     // Sync with backend API
     try {
@@ -1162,13 +1176,25 @@ function closeCreatePlaylistModal() {
     document.getElementById('createPlaylistModal').style.display = 'none';
 }
 
+let isCreatingPlaylist = false;
+
 async function submitCreatePlaylist() {
-    const name = document.getElementById('newPlaylistName').value.trim();
-    const desc = document.getElementById('newPlaylistDesc').value.trim();
+    if (isCreatingPlaylist) return;
+    const nameInput = document.getElementById('newPlaylistName');
+    const descInput = document.getElementById('newPlaylistDesc');
+    const btn = document.getElementById('createPlaylistBtn');
+    const name = nameInput ? nameInput.value.trim() : '';
+    const desc = descInput ? descInput.value.trim() : '';
 
     if (!name) {
         alert("Please enter a playlist name");
         return;
+    }
+
+    isCreatingPlaylist = true;
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Creating...`;
     }
 
     try {
@@ -1181,9 +1207,6 @@ async function submitCreatePlaylist() {
 
         if (data.success && data.playlist) {
             userLibrary.customPlaylists = data.playlists || userLibrary.customPlaylists;
-            if (!userLibrary.customPlaylists.some(p => p.id === data.playlist.id)) {
-                userLibrary.customPlaylists.unshift(data.playlist);
-            }
             saveLocalLibrary();
             closeCreatePlaylistModal();
 
@@ -1192,9 +1215,17 @@ async function submitCreatePlaylist() {
             } else if (currentView === 'library') {
                 switchLibraryTab('custom');
             }
+        } else {
+            alert(data.error || "Failed to create playlist.");
         }
     } catch (err) {
         alert("Failed to create playlist.");
+    } finally {
+        isCreatingPlaylist = false;
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fas fa-check"></i> Create & Save`;
+        }
     }
 }
 
@@ -1369,12 +1400,13 @@ function renderLikedSongs() {
 function renderLikedAlbums() {
     const container = document.getElementById('libAlbumsContainer');
     const albums = userLibrary.likedAlbums || [];
+    const defaultImg = 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=60';
 
     if (albums.length === 0) {
         container.innerHTML = `
             <div style="text-align:center; padding: 50px; grid-column:1/-1; color:var(--text-muted);">
                 <i class="fas fa-compact-disc" style="font-size:45px; margin-bottom:15px; opacity:0.5; color:var(--neon-cyan)"></i>
-                <p>No liked albums yet! Explore or search albums and like your favorites.</p>
+                <p>No saved albums yet! Explore or search albums and click "Save Album" to keep them here.</p>
             </div>
         `;
         return;
@@ -1382,18 +1414,18 @@ function renderLikedAlbums() {
 
     let html = '';
     albums.forEach(alb => {
-        const img = alb.image || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=60';
+        const img = alb.image || defaultImg;
         html += `
             <div class="collection-card" onclick="openAlbum('${alb.id}', '${escapeHtml(alb.title)}', '${escapeHtml(alb.artist)}', '${img}')">
                 <div class="collection-cover-wrap">
-                    <img src="${img}" class="collection-cover-img" alt="${alb.title}">
+                    <img src="${img}" class="collection-cover-img" alt="${escapeHtml(alb.title)}" onerror="this.onerror=null; this.src='${defaultImg}';">
                     <span class="collection-type-badge">Album</span>
                     <div class="collection-hover-play"><i class="fas fa-play"></i></div>
                 </div>
                 <div class="collection-card-title">${escapeHtml(alb.title)}</div>
                 <div class="collection-card-subtitle">${escapeHtml(alb.artist || 'Artist')}</div>
                 <div class="collection-card-footer">
-                    <span style="color:var(--neon-pink)"><i class="fas fa-heart"></i> Liked</span>
+                    <span style="color:var(--neon-cyan)"><i class="fas fa-bookmark"></i> Saved</span>
                     <i class="fas fa-trash" onclick="toggleAlbumLike({id:'${alb.id}', title:'${escapeHtml(alb.title)}'}); event.stopPropagation();" style="cursor:pointer; color:var(--text-muted);" title="Remove"></i>
                 </div>
             </div>
@@ -1405,12 +1437,13 @@ function renderLikedAlbums() {
 function renderLikedPlaylists() {
     const container = document.getElementById('libPlaylistsContainer');
     const playlists = userLibrary.likedPlaylists || [];
+    const defaultImg = 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60';
 
     if (playlists.length === 0) {
         container.innerHTML = `
             <div style="text-align:center; padding: 50px; grid-column:1/-1; color:var(--text-muted);">
                 <i class="fas fa-list" style="font-size:45px; margin-bottom:15px; opacity:0.5; color:var(--neon-pink)"></i>
-                <p>No liked playlists yet! Like curated playlists from Explore to find them here.</p>
+                <p>No saved playlists yet! Save curated playlists from Explore to find them here.</p>
             </div>
         `;
         return;
@@ -1418,18 +1451,18 @@ function renderLikedPlaylists() {
 
     let html = '';
     playlists.forEach(pl => {
-        const img = pl.image || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60';
+        const img = pl.image || defaultImg;
         html += `
             <div class="collection-card" onclick="openPlaylist('${pl.id}', '${escapeHtml(pl.title)}', '${img}')">
                 <div class="collection-cover-wrap">
-                    <img src="${img}" class="collection-cover-img" alt="${pl.title}">
+                    <img src="${img}" class="collection-cover-img" alt="${escapeHtml(pl.title)}" onerror="this.onerror=null; this.src='${defaultImg}';">
                     <span class="collection-type-badge" style="color:var(--neon-pink); border-color:rgba(255,8,68,0.3)">Playlist</span>
                     <div class="collection-hover-play"><i class="fas fa-play"></i></div>
                 </div>
                 <div class="collection-card-title">${escapeHtml(pl.title)}</div>
                 <div class="collection-card-subtitle">${pl.count ? `${pl.count} Songs` : 'Curated'}</div>
                 <div class="collection-card-footer">
-                    <span style="color:var(--neon-pink)"><i class="fas fa-heart"></i> Liked</span>
+                    <span style="color:var(--neon-cyan)"><i class="fas fa-bookmark"></i> Saved</span>
                     <i class="fas fa-trash" onclick="togglePlaylistLike({id:'${pl.id}', title:'${escapeHtml(pl.title)}'}); event.stopPropagation();" style="cursor:pointer; color:var(--text-muted);" title="Remove"></i>
                 </div>
             </div>
@@ -1441,6 +1474,7 @@ function renderLikedPlaylists() {
 function renderCustomPlaylists() {
     const container = document.getElementById('libCustomContainer');
     const playlists = userLibrary.customPlaylists || [];
+    const defaultImg = 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60';
 
     if (playlists.length === 0) {
         container.innerHTML = `
@@ -1458,18 +1492,18 @@ function renderCustomPlaylists() {
     let html = '';
     playlists.forEach(pl => {
         const count = (pl.tracks || []).length;
-        const img = pl.image || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60';
+        const img = pl.image || defaultImg;
         html += `
             <div class="collection-card" onclick="openCustomPlaylist('${pl.id}')">
                 <div class="collection-cover-wrap">
-                    <img src="${img}" class="collection-cover-img" alt="${pl.name}">
+                    <img src="${img}" class="collection-cover-img" alt="${escapeHtml(pl.name)}" onerror="this.onerror=null; this.src='${defaultImg}';">
                     <span class="collection-type-badge">Personal</span>
                     <div class="collection-hover-play"><i class="fas fa-play"></i></div>
                 </div>
                 <div class="collection-card-title">${escapeHtml(pl.name)}</div>
                 <div class="collection-card-subtitle">${count} Tracks</div>
                 <div class="collection-card-footer">
-                    <span>${escapeHtml(pl.description || 'Custom')}</span>
+                    <span>${escapeHtml(pl.description || 'Custom Playlist')}</span>
                     <i class="fas fa-trash" onclick="deleteCustomPlaylist('${pl.id}'); event.stopPropagation();" style="cursor:pointer; color:var(--text-muted);" title="Delete Playlist"></i>
                 </div>
             </div>
@@ -1488,13 +1522,55 @@ let progressInterval = null;
 let isDragging = false;
 let currentPendingVideoId = null;
 let activePlayerType = 'saavn';
+let isChangingSong = false; // Guard: prevents ended/error events from firing during song transitions
 const audioPlayer = new Audio();
+
+function updateMediaSession(title, artist, artworkUrl) {
+    if (title) {
+        document.title = `▶ ${title} - ${artist || 'MelodySphere'}`;
+    }
+
+    if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+            title: title || 'MelodySphere',
+            artist: artist || 'Ad-Free Music',
+            album: 'MelodySphere Stream',
+            artwork: artworkUrl ? [
+                { src: artworkUrl, sizes: '96x96', type: 'image/jpeg' },
+                { src: artworkUrl, sizes: '128x128', type: 'image/jpeg' },
+                { src: artworkUrl, sizes: '192x192', type: 'image/jpeg' },
+                { src: artworkUrl, sizes: '256x256', type: 'image/jpeg' },
+                { src: artworkUrl, sizes: '512x512', type: 'image/jpeg' }
+            ] : []
+        });
+
+        navigator.mediaSession.playbackState = 'playing';
+
+        try {
+            navigator.mediaSession.setActionHandler('play', () => togglePlay());
+            navigator.mediaSession.setActionHandler('pause', () => togglePlay());
+            navigator.mediaSession.setActionHandler('previoustrack', () => playPrevious());
+            navigator.mediaSession.setActionHandler('nexttrack', () => playNext());
+            navigator.mediaSession.setActionHandler('seekto', (details) => {
+                if (details.seekTime !== undefined) {
+                    if (activePlayerType === 'saavn') {
+                        audioPlayer.currentTime = details.seekTime;
+                    } else if (activePlayerType === 'youtube' && ytPlayer && typeof ytPlayer.seekTo === 'function') {
+                        try { ytPlayer.seekTo(details.seekTime, true); } catch (e) {}
+                    }
+                }
+            });
+        } catch (e) {}
+    }
+}
 
 audioPlayer.addEventListener('play', () => {
     const btn = document.getElementById('playPauseBtn');
     if (btn) btn.className = 'fas fa-pause-circle';
     const eq = document.getElementById('equalizerWave');
     if (eq) eq.classList.remove('paused');
+    if (currentSongMeta.track) document.title = `▶ ${currentSongMeta.track} - ${currentSongMeta.artist || 'MelodySphere'}`;
+    if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
 });
 
 audioPlayer.addEventListener('pause', () => {
@@ -1502,11 +1578,54 @@ audioPlayer.addEventListener('pause', () => {
     if (btn) btn.className = 'fas fa-play-circle';
     const eq = document.getElementById('equalizerWave');
     if (eq) eq.classList.add('paused');
+    if (currentSongMeta.track) document.title = `⏸ ${currentSongMeta.track} - ${currentSongMeta.artist || 'MelodySphere'}`;
+    if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
 });
 
 audioPlayer.addEventListener('ended', () => {
+    if (isChangingSong) return; // Ignore during transitions
     playNext();
 });
+
+audioPlayer.addEventListener('error', async (e) => {
+    if (isChangingSong) return; // Ignore spurious errors during song transitions
+    const errCode = audioPlayer.error ? audioPlayer.error.code : 0;
+    console.warn("Audio playback error (code " + errCode + "), retrying current song...", e);
+    const titleElem = document.getElementById('playerTitle');
+    const playBtn = document.getElementById('playPauseBtn');
+    const eq = document.getElementById('equalizerWave');
+
+    // Only retry if a song meta is available
+    if (!currentSongMeta.track) return;
+
+    titleElem.innerText = "Reconnecting...";
+
+    // Try re-fetching the same song fresh (JioSaavn URL expires)
+    try {
+        const searchQuery = `${currentSongMeta.track} ${currentSongMeta.artist || ''}`.trim();
+        const saavnRes = await fetch(`/api/saavn/search?q=${encodeURIComponent(searchQuery)}`);
+        const saavnData = await saavnRes.json();
+        if (saavnData.success && saavnData.streamUrl) {
+            activePlayerType = 'saavn';
+            audioPlayer.src = saavnData.streamUrl;
+            currentSongMeta.streamUrl = saavnData.streamUrl;
+            audioPlayer.play().catch(() => {});
+            titleElem.innerText = currentSongMeta.track;
+            return;
+        }
+    } catch (retryErr) {
+        console.warn("Retry fetch failed:", retryErr);
+    }
+
+    // Retry failed → skip to next only if there are more songs
+    titleElem.innerText = "Skipping...";
+    if (playBtn) playBtn.className = 'fas fa-play-circle';
+    if (eq) eq.classList.add('paused');
+    setTimeout(() => {
+        if (!isChangingSong && currentTrackIndex >= 0 && currentPlaylist.length > 1) playNext();
+    }, 800);
+});
+
 
 audioPlayer.addEventListener('timeupdate', () => {
     if (activePlayerType !== 'saavn' || isDragging) return;
@@ -1801,11 +1920,15 @@ async function playMusic(track, artist, index = -1) {
         updateSliderFill(bar, '#00f2fe');
     }
     
+    // Guard flag: prevent ended/error events from triggering during song transitions
+    isChangingSong = true;
     audioPlayer.pause();
     audioPlayer.src = "";
     if (ytPlayer && typeof ytPlayer.stopVideo === 'function') {
         try { ytPlayer.stopVideo(); } catch (e) {}
     }
+    // Allow a brief moment for events to settle, then release the guard
+    setTimeout(() => { isChangingSong = false; }, 300);
     
     const searchQuery = `${track} ${artist || ''}`.trim();
     
@@ -1837,11 +1960,13 @@ async function playMusic(track, artist, index = -1) {
             }
             
             audioPlayer.src = saavnData.streamUrl;
+            isChangingSong = false; // New song is loaded, events are now valid again
             audioPlayer.volume = parseInt(document.getElementById('volumeBar').value || 100) / 100;
             audioPlayer.play().catch(err => {
                 console.warn("Autoplay blocked, user interaction required:", err);
             });
             
+            updateMediaSession(saavnData.title || track, saavnData.artist || artist || "", saavnData.image || '');
             updatePlayerLikeBtn();
             if (window.innerWidth < 768) player.scrollIntoView({ behavior: 'smooth' });
             return;
@@ -1864,17 +1989,22 @@ async function playMusic(track, artist, index = -1) {
             thumbElem.style.display = 'block';
             iconElem.style.display = 'none';
             
+            isChangingSong = false; // New song loaded via YouTube
+            updateMediaSession(track, artist || "", currentSongMeta.image);
             initOrLoadPlayer(data.videoId);
         } else {
+            isChangingSong = false;
             titleElem.innerText = "Track not found";
             if (playBtn) playBtn.className = 'fas fa-play-circle';
             if (eq) eq.classList.add('paused');
         }
     } catch (err) {
+        isChangingSong = false;
         titleElem.innerText = "Connection Error";
         if (playBtn) playBtn.className = 'fas fa-play-circle';
         if (eq) eq.classList.add('paused');
     }
+
     
     if (window.innerWidth < 768) player.scrollIntoView({ behavior: 'smooth' });
 }

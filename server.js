@@ -810,7 +810,7 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-if (process.env.NODE_ENV !== "production") {
+if (!process.env.VERCEL) {
   const PORT = process.env.PORT || 3001;
   app.listen(PORT, () => {
     console.log(`\n🚀 MelodySphere Backend Running at http://localhost:${PORT}`);
