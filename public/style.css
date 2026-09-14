@@ -1003,7 +1003,7 @@ body::after {
 
 .player-buttons .ctrl-btn {
     cursor: pointer;
-    font-size: 34px;
+    font-size: 22px;
     color: rgba(255,255,255,0.85);
     transition: all 0.2s;
     flex-shrink: 0;
@@ -1016,16 +1016,16 @@ body::after {
 
 .player-buttons .main-play-btn {
     cursor: pointer;
-    font-size: 34px;
+    font-size: 38px;
     color: var(--neon-cyan);
     transition: all 0.2s;
     flex-shrink: 0;
-    filter: drop-shadow(0 0 10px rgba(0,242,254,0.5));
+    filter: drop-shadow(0 0 12px rgba(0,242,254,0.6));
 }
 
 .player-buttons .main-play-btn:hover {
     transform: scale(1.15);
-    filter: drop-shadow(0 0 20px rgba(0, 242, 254, 0.8));
+    filter: drop-shadow(0 0 22px rgba(0, 242, 254, 0.9));
 }
 
 .player-right {
@@ -2629,15 +2629,15 @@ input[type="range"].custom-slider::-moz-range-thumb {
     }
 
     .player-buttons .ctrl-btn {
-        font-size: 22px !important;
+        font-size: 18px !important;
         color: rgba(255,255,255,0.85) !important;
         padding: 0 !important;
     }
 
     .player-buttons .main-play-btn {
-        font-size: 22px !important;
+        font-size: 28px !important;
         color: var(--neon-cyan) !important;
-        filter: drop-shadow(0 0 6px rgba(0, 242, 254, 0.5)) !important;
+        filter: drop-shadow(0 0 8px rgba(0, 242, 254, 0.6)) !important;
     }
 
     /* Action buttons: Lyrics, Download - clearly separated from playback */
