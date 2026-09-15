@@ -1,10 +1,17 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { usePlayer } from '../../context/PlayerContext';
 import { useLibrary } from '../../context/LibraryContext';
 import { useUI } from '../../context/UIContext';
 
+function formatNumber(num) {
+  if (!num || num === 0) return '0';
+  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+  if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+  return num.toString();
+}
+
 export default function SearchView() {
-  const [activeSearchTab, setActiveSearchTab] = useState('artist'); // 'artist' | 'track' | 'album' | 'playlist'
+  const [activeTab, setActiveTab] = useState('artist'); // 'artist' | 'track' | 'album' | 'playlist'
   const [artistQuery, setArtistQuery] = useState('');
   const [trackQuery, setTrackQuery] = useState('');
   const [trackArtistQuery, setTrackArtistQuery] = useState('');
@@ -12,30 +19,48 @@ export default function SearchView() {
   const [playlistQuery, setPlaylistQuery] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
-  const [isRecognizing, setIsRecognizing] = useState(false);
   const [resultsData, setResultsData] = useState(null); // { type, data }
+  const [bioCollapsed, setBioCollapsed] = useState(true);
 
-  const { playMusic, playTrackByIndex } = usePlayer();
-  const { isTrackLiked, isAlbumLiked, isPlaylistLiked, toggleTrackLike, toggleAlbumLike, togglePlaylistLike } = useLibrary();
-  const { openModal, showToast } = useUI();
+  // Voice Search states
+  const [listeningTab, setListeningTab] = useState(null);
+  const [recognizingTab, setRecognizingTab] = useState(null);
+
+  const { playMusic } = usePlayer();
+  const { isTrackLiked, toggleTrackLike } = useLibrary();
+  const { openModal, showToast, pendingArtistSearch, setPendingArtistSearch } = useUI();
+
+  // Handle pending artist search from Charts
+  useEffect(() => {
+    if (pendingArtistSearch) {
+      setActiveTab('artist');
+      setArtistQuery(pendingArtistSearch);
+      handleSearchArtist(pendingArtistSearch);
+      if (setPendingArtistSearch) {
+        setPendingArtistSearch('');
+      }
+    }
+  }, [pendingArtistSearch]);
 
   // Search Artist
   const handleSearchArtist = async (query = null) => {
-    const q = (query || artistQuery).trim();
+    const q = (query !== null ? query : artistQuery).trim() || 'Arijit Singh';
     if (!q) return;
     setIsLoading(true);
     setResultsData(null);
+    setBioCollapsed(true);
 
     try {
-      const res = await fetch(`/api/artist?name=${encodeURIComponent(q)}`);
-      const data = await res.json();
-      if (data.error) {
-        showToast('Artist not found', data.error, 'error');
-      } else {
+      const response = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+      const data = await response.json();
+      if (data.success && data.artist) {
         setResultsData({ type: 'artist', data });
+      } else {
+        showToast('Artist not found', data.error || 'No artist found', 'error');
       }
-    } catch (err) {
-      showToast('Search Error', 'Failed to fetch artist details', 'error');
+    } catch (error) {
+      console.error('Error:', error);
+      showToast('Search Error', 'Failed to fetch artist. Please try again.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -45,23 +70,26 @@ export default function SearchView() {
   const handleSearchTrack = async () => {
     const track = trackQuery.trim();
     const artist = trackArtistQuery.trim();
-    if (!track) return;
+    if (!track) {
+      alert('Please enter a track name');
+      return;
+    }
     setIsLoading(true);
     setResultsData(null);
 
     try {
-      const url = artist
-        ? `/api/track?track=${encodeURIComponent(track)}&artist=${encodeURIComponent(artist)}`
-        : `/api/track?track=${encodeURIComponent(track)}`;
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.error) {
-        showToast('Track not found', data.error, 'error');
+      let url = `/api/track/search?q=${encodeURIComponent(track)}`;
+      if (artist) url += `&artist=${encodeURIComponent(artist)}`;
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.success && data.results && data.results.length > 0) {
+        setResultsData({ type: 'track', data: data.results });
       } else {
-        setResultsData({ type: 'track', data: data.track ? [data.track] : data });
+        showToast('No tracks found', 'Try another song or artist name', 'error');
       }
-    } catch (err) {
-      showToast('Search Error', 'Failed to search song', 'error');
+    } catch (error) {
+      console.error('Error:', error);
+      showToast('Search Error', 'Failed to fetch tracks. Please try again.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -70,16 +98,24 @@ export default function SearchView() {
   // Search Album
   const handleSearchAlbum = async () => {
     const q = albumQuery.trim();
-    if (!q) return;
+    if (!q) {
+      alert('Please enter an album name');
+      return;
+    }
     setIsLoading(true);
     setResultsData(null);
 
     try {
       const res = await fetch(`/api/saavn/album/search?q=${encodeURIComponent(q)}`);
       const data = await res.json();
-      setResultsData({ type: 'album', data: data.results || [] });
-    } catch (err) {
-      showToast('Search Error', 'Failed to search albums', 'error');
+      if (data.success && data.results && data.results.length > 0) {
+        setResultsData({ type: 'album', data: data.results });
+      } else {
+        showToast('No albums found', 'No albums found with that name', 'error');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      showToast('Search Error', 'Failed to search albums. Please try again.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -88,370 +124,718 @@ export default function SearchView() {
   // Search Playlist
   const handleSearchPlaylist = async () => {
     const q = playlistQuery.trim();
-    if (!q) return;
+    if (!q) {
+      alert('Please enter a playlist keyword');
+      return;
+    }
     setIsLoading(true);
     setResultsData(null);
 
     try {
       const res = await fetch(`/api/saavn/playlist/search?q=${encodeURIComponent(q)}`);
       const data = await res.json();
-      setResultsData({ type: 'playlist', data: data.results || [] });
-    } catch (err) {
-      showToast('Search Error', 'Failed to search playlists', 'error');
+      if (data.success && data.results && data.results.length > 0) {
+        setResultsData({ type: 'playlist', data: data.results });
+      } else {
+        showToast('No playlists found', 'No playlists found with that keyword', 'error');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      showToast('Search Error', 'Failed to search playlists. Please try again.', 'error');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Voice / Shazam Audio Recognition
-  const handleAudioRecognize = async () => {
+  // Voice Search / Shazam Recognition
+  const startVoiceSearch = async (tabType) => {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       alert('Microphone access is not supported on this device/browser.');
       return;
     }
-    setIsRecognizing(true);
-    showToast('Listening...', 'Please play the song near your microphone', 'info');
+
+    setListeningTab(tabType);
+    let speechDetected = false;
+    let mediaRecorder = null;
+    let stream = null;
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+    if (SpeechRecognition) {
+      recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+    }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
       const audioChunks = [];
 
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) audioChunks.push(event.data);
-      };
+      mediaRecorder.addEventListener('dataavailable', (e) => {
+        if (e.data.size > 0) audioChunks.push(e.data);
+      });
 
-      mediaRecorder.onstop = async () => {
+      mediaRecorder.addEventListener('stop', async () => {
+        if (speechDetected) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+
+        setListeningTab(null);
+        setRecognizingTab(tabType);
+
         const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
         reader.onloadend = async () => {
-          const base64Audio = reader.result.split(',')[1];
+          let base64data = reader.result.split(',')[1];
           try {
-            const res = await fetch('/api/recognize', {
+            const response = await fetch('/api/recognize', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ audio: base64Audio }),
+              body: JSON.stringify({ audioData: base64data }),
             });
-            const data = await res.json();
+            const data = await response.json();
             if (data.success && data.title) {
-              showToast('Song Identified!', `${data.title} - ${data.artist}`, 'success');
-              setActiveSearchTab('track');
+              setActiveTab('track');
               setTrackQuery(data.title);
               setTrackArtistQuery(data.artist || '');
-              // Trigger track search
-              const searchRes = await fetch(`/api/track?track=${encodeURIComponent(data.title)}&artist=${encodeURIComponent(data.artist || '')}`);
-              const searchData = await searchRes.json();
-              if (searchData.track) setResultsData({ type: 'track', data: [searchData.track] });
+              showToast('Song Identified!', `${data.title} - ${data.artist}`, 'success');
+
+              // Fetch track search results
+              let url = `/api/track/search?q=${encodeURIComponent(data.title)}`;
+              if (data.artist) url += `&artist=${encodeURIComponent(data.artist)}`;
+              const sRes = await fetch(url);
+              const sData = await sRes.json();
+              if (sData.success && sData.results) {
+                setResultsData({ type: 'track', data: sData.results });
+              }
             } else {
-              showToast('Recognition Failed', data.error || 'Could not recognize audio', 'error');
+              showToast('Audio Recognition', data.error || 'Song not recognized. Please move closer to speaker.', 'error');
             }
-          } catch (e) {
-            showToast('Error', 'Recognition service unreachable', 'error');
+          } catch (err) {
+            showToast('Recognition Error', 'Error contacting recognition service.', 'error');
           } finally {
-            setIsRecognizing(false);
+            setRecognizingTab(null);
+            stream.getTracks().forEach((track) => track.stop());
           }
         };
-      };
+      });
 
-      mediaRecorder.start();
+      if (recognition) {
+        recognition.onresult = (event) => {
+          speechDetected = true;
+          if (mediaRecorder.state === 'recording') mediaRecorder.stop();
+
+          const transcript = event.results[0][0].transcript;
+          setListeningTab(null);
+
+          if (tabType === 'artist') {
+            setArtistQuery(transcript);
+            handleSearchArtist(transcript);
+          } else if (tabType === 'track') {
+            setTrackQuery(transcript);
+            handleSearchTrack();
+          } else if (tabType === 'album') {
+            setAlbumQuery(transcript);
+            handleSearchAlbum();
+          } else if (tabType === 'playlist') {
+            setPlaylistQuery(transcript);
+            handleSearchPlaylist();
+          }
+        };
+
+        try {
+          recognition.start();
+        } catch (e) {}
+      }
+
+      mediaRecorder.start(1000);
+
       setTimeout(() => {
-        if (mediaRecorder.state === 'recording') {
+        if (!speechDetected && mediaRecorder.state === 'recording') {
+          if (recognition) {
+            try {
+              recognition.stop();
+            } catch (e) {}
+          }
           mediaRecorder.stop();
-          stream.getTracks().forEach((track) => track.stop());
         }
-      }, 5000);
+      }, 6000);
     } catch (err) {
-      setIsRecognizing(false);
-      showToast('Microphone Error', 'Microphone permission denied', 'error');
+      console.error('Mic error:', err);
+      setListeningTab(null);
+      setRecognizingTab(null);
+      alert('Could not access microphone.');
     }
+  };
+
+  const switchTab = (tab) => {
+    setActiveTab(tab);
+    setResultsData(null);
   };
 
   return (
     <div id="searchView">
-      <div className="hero">
-        <h1>Discover Your Next Musical Obsession</h1>
-        <p>Explore millions of songs, albums, and artists with instant, ad-free streaming.</p>
-      </div>
-
       <div className="search-section">
-        {/* Search Mode Pill Tabs */}
+        {/* Search Tabs */}
         <div className="search-tabs">
           <button
-            className={`tab-btn ${activeSearchTab === 'artist' ? 'active' : ''}`}
-            onClick={() => { setActiveSearchTab('artist'); setResultsData(null); }}
+            className={`tab-btn ${activeTab === 'artist' ? 'active' : ''}`}
+            onClick={() => switchTab('artist')}
           >
-            <i className="fas fa-user-astronaut"></i> Artist
+            <i className="fas fa-microphone"></i> Artist
           </button>
           <button
-            className={`tab-btn ${activeSearchTab === 'track' ? 'active' : ''}`}
-            onClick={() => { setActiveSearchTab('track'); setResultsData(null); }}
+            className={`tab-btn ${activeTab === 'track' ? 'active' : ''}`}
+            onClick={() => switchTab('track')}
           >
-            <i className="fas fa-music"></i> Song / Track
+            <i className="fas fa-music"></i> Track
           </button>
           <button
-            className={`tab-btn ${activeSearchTab === 'album' ? 'active' : ''}`}
-            onClick={() => { setActiveSearchTab('album'); setResultsData(null); }}
+            className={`tab-btn ${activeTab === 'album' ? 'active' : ''}`}
+            onClick={() => switchTab('album')}
           >
             <i className="fas fa-compact-disc"></i> Album
           </button>
           <button
-            className={`tab-btn ${activeSearchTab === 'playlist' ? 'active' : ''}`}
-            onClick={() => { setActiveSearchTab('playlist'); setResultsData(null); }}
+            className={`tab-btn ${activeTab === 'playlist' ? 'active' : ''}`}
+            onClick={() => switchTab('playlist')}
           >
-            <i className="fas fa-list"></i> Playlist
+            <i className="fas fa-list-ul"></i> Playlist
           </button>
         </div>
 
         {/* 1. Artist Search */}
-        {activeSearchTab === 'artist' && (
-          <div className="search-box">
-            <div className="input-group">
-              <input
-                type="text"
-                placeholder="Enter artist name (e.g. Arijit Singh, Diljit Dosanjh, The Weeknd)..."
-                value={artistQuery}
-                onChange={(e) => setArtistQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearchArtist()}
-              />
+        <div id="artistSearch" style={{ display: activeTab === 'artist' ? 'block' : 'none' }}>
+          <div className="search-container">
+            <div className="search-box">
+              <div className="search-input-wrap">
+                <input
+                  type="text"
+                  id="artistInput"
+                  placeholder="Type artist name (e.g. Arijit Singh, Atif Aslam)..."
+                  value={artistQuery}
+                  onChange={(e) => setArtistQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearchArtist()}
+                />
+                <button
+                  className={`mic-btn ${listeningTab === 'artist' ? 'listening' : ''}`}
+                  onClick={() => startVoiceSearch('artist')}
+                  title="Speak to Search"
+                >
+                  <i className={recognizingTab === 'artist' ? 'fas fa-spinner fa-spin' : 'fas fa-microphone'}></i>
+                </button>
+              </div>
               <button className="search-btn" onClick={() => handleSearchArtist()}>
                 <i className="fas fa-search"></i> Search
               </button>
             </div>
-            <div className="quick-suggestions">
-              <span>Trending:</span>
-              {['Arijit Singh', 'Shreya Ghoshal', 'Atif Aslam', 'Diljit Dosanjh', 'Taylor Swift'].map((name) => (
-                <button
-                  key={name}
-                  className="suggestion-chip"
-                  onClick={() => {
-                    setArtistQuery(name);
-                    handleSearchArtist(name);
-                  }}
-                >
-                  {name}
-                </button>
-              ))}
-            </div>
           </div>
-        )}
+        </div>
 
         {/* 2. Track Search */}
-        {activeSearchTab === 'track' && (
-          <div className="search-box">
-            <div className="input-group">
+        <div id="trackSearch" style={{ display: activeTab === 'track' ? 'block' : 'none' }}>
+          <div className="search-container">
+            <div className="search-box track-search-box">
+              <div className="track-input-row">
+                <input
+                  type="text"
+                  id="trackInput"
+                  placeholder="Enter track name..."
+                  value={trackQuery}
+                  onChange={(e) => setTrackQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearchTrack()}
+                />
+                <button
+                  className={`mic-btn ${listeningTab === 'track' ? 'listening' : ''}`}
+                  onClick={() => startVoiceSearch('track')}
+                  title="Speak to Search"
+                >
+                  <i className={recognizingTab === 'track' ? 'fas fa-spinner fa-spin' : 'fas fa-microphone'}></i>
+                </button>
+              </div>
               <input
                 type="text"
-                placeholder="Enter song name (e.g. Tum Hi Ho, Kesariya)..."
-                value={trackQuery}
-                onChange={(e) => setTrackQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearchTrack()}
-              />
-              <input
-                type="text"
-                placeholder="Artist name (optional)..."
+                id="trackArtistInput"
+                placeholder="Artist name (optional)"
                 value={trackArtistQuery}
                 onChange={(e) => setTrackArtistQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearchTrack()}
-                style={{ maxWidth: '240px' }}
               />
               <button className="search-btn" onClick={handleSearchTrack}>
-                <i className="fas fa-search"></i> Find Song
-              </button>
-              <button
-                className={`search-btn ${isRecognizing ? 'pulse-btn' : ''}`}
-                style={{ background: isRecognizing ? 'var(--neon-pink)' : 'rgba(255,255,255,0.08)' }}
-                onClick={handleAudioRecognize}
-                title="Identify music playing near you"
-              >
-                <i className={`fas ${isRecognizing ? 'fa-spinner fa-spin' : 'fa-microphone'}`}></i>
+                <i className="fas fa-search"></i> Search Track
               </button>
             </div>
           </div>
-        )}
+        </div>
 
         {/* 3. Album Search */}
-        {activeSearchTab === 'album' && (
-          <div className="search-box">
-            <div className="input-group">
-              <input
-                type="text"
-                placeholder="Search JioSaavn albums (e.g. Aashiqui 2, Kabir Singh, Rockstar)..."
-                value={albumQuery}
-                onChange={(e) => setAlbumQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearchAlbum()}
-              />
+        <div id="albumSearch" style={{ display: activeTab === 'album' ? 'block' : 'none' }}>
+          <div className="search-container">
+            <div className="search-box">
+              <div className="search-input-wrap">
+                <input
+                  type="text"
+                  id="albumInput"
+                  placeholder="Type album name (e.g. Aashiqui 2, Rockstar, Animal)..."
+                  value={albumQuery}
+                  onChange={(e) => setAlbumQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearchAlbum()}
+                />
+                <button
+                  className={`mic-btn ${listeningTab === 'album' ? 'listening' : ''}`}
+                  onClick={() => startVoiceSearch('album')}
+                  title="Speak to Search"
+                >
+                  <i className={recognizingTab === 'album' ? 'fas fa-spinner fa-spin' : 'fas fa-microphone'}></i>
+                </button>
+              </div>
               <button className="search-btn" onClick={handleSearchAlbum}>
-                <i className="fas fa-compact-disc"></i> Search Album
+                <i className="fas fa-search"></i> Search Album
               </button>
             </div>
           </div>
-        )}
+        </div>
 
         {/* 4. Playlist Search */}
-        {activeSearchTab === 'playlist' && (
-          <div className="search-box">
-            <div className="input-group">
-              <input
-                type="text"
-                placeholder="Search playlists (e.g. 90s Romance, Lo-Fi Chill, Punjabi Party)..."
-                value={playlistQuery}
-                onChange={(e) => setPlaylistQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearchPlaylist()}
-              />
+        <div id="playlistSearch" style={{ display: activeTab === 'playlist' ? 'block' : 'none' }}>
+          <div className="search-container">
+            <div className="search-box">
+              <div className="search-input-wrap">
+                <input
+                  type="text"
+                  id="playlistInput"
+                  placeholder="Type playlist keyword (e.g. Romantic, Lo-Fi, Party)..."
+                  value={playlistQuery}
+                  onChange={(e) => setPlaylistQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearchPlaylist()}
+                />
+                <button
+                  className={`mic-btn ${listeningTab === 'playlist' ? 'listening' : ''}`}
+                  onClick={() => startVoiceSearch('playlist')}
+                  title="Speak to Search"
+                >
+                  <i className={recognizingTab === 'playlist' ? 'fas fa-spinner fa-spin' : 'fas fa-microphone'}></i>
+                </button>
+              </div>
               <button className="search-btn" onClick={handleSearchPlaylist}>
-                <i className="fas fa-list"></i> Search Playlist
+                <i className="fas fa-search"></i> Search Playlist
               </button>
             </div>
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Loading Spinner */}
+      {/* Loading */}
       {isLoading && (
         <div className="loading" style={{ display: 'block' }}>
           <div className="spinner"></div>
-          <p style={{ marginTop: '10px' }}>Loading results...</p>
+          <p style={{ marginTop: '20px' }}>Finding tunes for you...</p>
         </div>
       )}
 
-      {/* Results Container */}
+      {/* Results */}
       {resultsData && (
-        <div id="results" style={{ display: 'block' }}>
-          {/* Artist View */}
+        <div className="results" id="results" style={{ display: 'block' }}>
+          {/* 1. Artist Results */}
           {resultsData.type === 'artist' && (
             <div>
-              <div className="artist-profile-hero">
-                <img
-                  src={resultsData.data.artist?.image || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60'}
-                  alt={resultsData.data.artist?.name}
-                  className="artist-profile-img"
-                  onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60'; }}
-                />
-                <div className="artist-profile-info">
-                  <h2>{resultsData.data.artist?.name}</h2>
-                  <div className="artist-meta-chips">
-                    <span><i className="fas fa-users"></i> {resultsData.data.artist?.listeners || '1M+'} Listeners</span>
-                    <span><i className="fas fa-play"></i> {resultsData.data.artist?.playcount || '5M+'} Plays</span>
+              <div className="artist-card">
+                <div className="artist-image">
+                  {resultsData.data.artist.image ? (
+                    <img
+                      src={resultsData.data.artist.image}
+                      alt={resultsData.data.artist.name}
+                      onError={(e) => {
+                        e.target.src = 'https://via.placeholder.com/300?text=Artist';
+                      }}
+                    />
+                  ) : (
+                    '🎤'
+                  )}
+                </div>
+                <div className="artist-details">
+                  <div className="artist-name">{resultsData.data.artist.name}</div>
+                  <div className="artist-tags">
+                    {resultsData.data.artist.tags &&
+                      resultsData.data.artist.tags.map((tag, idx) => (
+                        <span key={idx} className="tag">
+                          #{tag}
+                        </span>
+                      ))}
                   </div>
-                  {resultsData.data.artist?.bio && (
-                    <p className="artist-bio-text">{resultsData.data.artist.bio.summary}</p>
+                  <div className="artist-stats">
+                    <div className="stat-card">
+                      <div className="stat-number">{formatNumber(resultsData.data.artist.listeners)}</div>
+                      <div className="stat-label">Listeners</div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-number">{formatNumber(resultsData.data.artist.playcount)}</div>
+                      <div className="stat-label">Plays</div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-number">{resultsData.data.top_tracks ? resultsData.data.top_tracks.length : 0}</div>
+                      <div className="stat-label">Top Tracks</div>
+                    </div>
+                  </div>
+                  <div
+                    className={`artist-bio ${bioCollapsed ? 'collapsed' : ''}`}
+                    id="artistBio"
+                    dangerouslySetInnerHTML={{ __html: resultsData.data.artist.bio || 'No bio available' }}
+                  />
+                  <span className="read-more" id="readMoreBtn" onClick={() => setBioCollapsed(!bioCollapsed)}>
+                    {bioCollapsed ? 'Read More' : 'Read Less'}
+                  </span>
+                  {resultsData.data.artist.url && (
+                    <a href={resultsData.data.artist.url} target="_blank" rel="noreferrer" className="artist-link">
+                      <i className="fas fa-external-link-alt"></i> View on Last.fm
+                    </a>
                   )}
                 </div>
               </div>
 
               {/* Top Tracks */}
-              {resultsData.data.topTracks && resultsData.data.topTracks.length > 0 && (
+              {resultsData.data.top_tracks && resultsData.data.top_tracks.length > 0 && (
                 <div className="music-section">
-                  <div className="section-title"><i className="fas fa-fire" style={{ color: 'var(--neon-pink)' }}></i> Top Popular Tracks</div>
-                  <div className="track-results-grid">
-                    {resultsData.data.topTracks.map((item, idx) => (
-                      <TrackItem
-                        key={idx}
-                        item={item}
-                        index={idx}
-                        queue={resultsData.data.topTracks}
-                        isTrackLiked={isTrackLiked}
-                        toggleTrackLike={toggleTrackLike}
-                        playMusic={playMusic}
-                        openModal={openModal}
-                      />
-                    ))}
+                  <div className="section-header">
+                    <div className="section-title">
+                      <i className="fas fa-chart-simple"></i> Top Tracks
+                    </div>
+                  </div>
+                  <div className="tracks-grid">
+                    {resultsData.data.top_tracks.map((track, index) => {
+                      const artistName = resultsData.data.artist.name;
+                      const query = `${track.name} ${artistName}`;
+                      const liked = isTrackLiked(track.name, artistName);
+                      const trackQueue = resultsData.data.top_tracks.map((t) => ({
+                        track: t.name,
+                        artist: artistName,
+                        image: '',
+                      }));
+
+                      return (
+                        <div key={index} className="track-item">
+                          <div
+                            className="track-info"
+                            onClick={() => playMusic(track.name, artistName, '', trackQueue, index)}
+                          >
+                            <div className="track-name">
+                              {index + 1}. {track.name}
+                            </div>
+                            <div className="track-stats">
+                              <i className="fas fa-users"></i> {formatNumber(track.listeners)} listeners |{' '}
+                              <i className="fas fa-play"></i> {formatNumber(track.playcount)} plays
+                            </div>
+                          </div>
+                          <div className="track-actions">
+                            <i
+                              className={`${liked ? 'fas' : 'far'} fa-heart`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleTrackLike(track.name, artistName, '');
+                              }}
+                              style={{
+                                color: liked ? 'var(--neon-pink)' : 'var(--text-muted)',
+                                cursor: 'pointer',
+                                fontSize: '17px',
+                              }}
+                              title="Like Track"
+                            ></i>
+                            <i
+                              className="fas fa-plus"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openModal('addToPl', { track: track.name, artist: artistName, image: '' });
+                              }}
+                              style={{ color: 'var(--text-muted)', cursor: 'pointer', fontSize: '15px' }}
+                              title="Add to Playlist"
+                            ></i>
+                            <a
+                              href={`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="yt-link"
+                              title="Watch on YouTube"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <i className="fab fa-youtube"></i>
+                            </a>
+                            <div
+                              className="track-play"
+                              onClick={() => playMusic(track.name, artistName, '', trackQueue, index)}
+                            >
+                              <i className="fas fa-play"></i>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Top Albums */}
+              {resultsData.data.top_albums && resultsData.data.top_albums.length > 0 && (
+                <div className="music-section">
+                  <div className="section-header">
+                    <div className="section-title">
+                      <i className="fas fa-compact-disc"></i> Top Albums
+                    </div>
+                  </div>
+                  <div className="albums-grid">
+                    {resultsData.data.top_albums.map((album, idx) => {
+                      const albumImg =
+                        album.image || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=60';
+                      return (
+                        <div
+                          key={idx}
+                          className="album-card"
+                          onClick={() =>
+                            openModal('collection', {
+                              type: 'album',
+                              title: album.name,
+                              artist: resultsData.data.artist.name,
+                              image: albumImg,
+                            })
+                          }
+                        >
+                          <div className="album-cover">
+                            <img
+                              src={albumImg}
+                              alt={album.name}
+                              onError={(e) => {
+                                e.target.src = 'https://via.placeholder.com/300?text=Album';
+                              }}
+                            />
+                          </div>
+                          <div className="album-name">{album.name}</div>
+                          <div style={{ fontSize: '12px', color: 'var(--neon-cyan)', marginTop: '4px' }}>
+                            <i className="fas fa-play"></i> Open Album
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
             </div>
           )}
 
-          {/* Track Results */}
+          {/* 2. Track Results */}
           {resultsData.type === 'track' && (
             <div className="music-section">
-              <div className="section-title"><i className="fas fa-music" style={{ color: 'var(--neon-cyan)' }}></i> Track Results</div>
+              <div className="section-header">
+                <div className="section-title">
+                  <i className="fas fa-music"></i> Track Results ({resultsData.data.length} found)
+                </div>
+              </div>
               <div className="track-results-grid">
-                {resultsData.data.map((item, idx) => (
-                  <TrackItem
-                    key={idx}
-                    item={item}
-                    index={idx}
-                    queue={resultsData.data}
-                    isTrackLiked={isTrackLiked}
-                    toggleTrackLike={toggleTrackLike}
-                    playMusic={playMusic}
-                    openModal={openModal}
-                  />
-                ))}
+                {resultsData.data.map((track, index) => {
+                  const trackName = track.name;
+                  const artistName = track.artist || 'Unknown Artist';
+                  const query = `${trackName} ${artistName}`;
+                  const liked = isTrackLiked(trackName, artistName);
+                  const trackImg =
+                    track.image || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60';
+                  const trackQueue = resultsData.data.map((t) => ({
+                    track: t.name,
+                    artist: t.artist || 'Unknown Artist',
+                    image: t.image || '',
+                  }));
+
+                  return (
+                    <div key={index} className="track-item">
+                      <div
+                        className="track-thumbnail-wrap"
+                        onClick={() => playMusic(trackName, artistName, trackImg, trackQueue, index)}
+                      >
+                        <img
+                          src={trackImg}
+                          className="track-thumbnail-img"
+                          alt={trackName}
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src =
+                              'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60';
+                          }}
+                        />
+                      </div>
+                      <div
+                        className="track-info"
+                        onClick={() => playMusic(trackName, artistName, trackImg, trackQueue, index)}
+                      >
+                        <div className="track-name">
+                          {index + 1}. {trackName}
+                        </div>
+                        <div className="track-stats">
+                          <i className="fas fa-microphone"></i> {artistName}{' '}
+                          {track.album && (
+                            <>
+                              {' '}• <i className="fas fa-compact-disc"></i> {track.album}
+                            </>
+                          )}{' '}
+                          {track.year && `(${track.year})`}
+                        </div>
+                      </div>
+                      <div className="track-actions">
+                        <i
+                          className={`${liked ? 'fas' : 'far'} fa-heart`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleTrackLike(trackName, artistName, trackImg);
+                          }}
+                          style={{
+                            color: liked ? 'var(--neon-pink)' : 'var(--text-muted)',
+                            cursor: 'pointer',
+                            fontSize: '17px',
+                          }}
+                          title="Like Track"
+                        ></i>
+                        <i
+                          className="fas fa-plus"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openModal('addToPl', { track: trackName, artist: artistName, image: trackImg });
+                          }}
+                          style={{ color: 'var(--text-muted)', cursor: 'pointer', fontSize: '15px' }}
+                          title="Add to Playlist"
+                        ></i>
+                        <a
+                          href={`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="yt-link"
+                          title="Watch on YouTube"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <i className="fab fa-youtube"></i>
+                        </a>
+                        <div
+                          className="track-play"
+                          onClick={() => playMusic(trackName, artistName, trackImg, trackQueue, index)}
+                        >
+                          <i className="fas fa-play"></i>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
 
-          {/* Album Results */}
+          {/* 3. Album Results */}
           {resultsData.type === 'album' && (
             <div className="music-section">
-              <div className="section-title"><i className="fas fa-compact-disc" style={{ color: 'var(--neon-cyan)' }}></i> Albums Found</div>
+              <div className="section-header">
+                <div className="section-title">
+                  <i className="fas fa-compact-disc"></i> Albums Found ({resultsData.data.length})
+                </div>
+              </div>
               <div className="collection-grid">
-                {resultsData.data.map((alb, idx) => (
-                  <div
-                    key={idx}
-                    className="collection-card"
-                    onClick={() => openModal('collection', { type: 'album', id: alb.id, title: alb.title, artist: alb.artist, image: alb.image })}
-                  >
-                    <div className="collection-cover-wrap">
-                      <img src={alb.image || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=60'} alt={alb.title} className="collection-cover-img" />
-                      <span className="collection-type-badge">Album</span>
-                      <div className="collection-hover-play"><i className="fas fa-play"></i></div>
+                {resultsData.data.map((alb, idx) => {
+                  const img =
+                    alb.image || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=60';
+                  return (
+                    <div
+                      key={alb.id || idx}
+                      className="collection-card"
+                      onClick={() =>
+                        openModal('collection', {
+                          type: 'album',
+                          id: alb.id,
+                          title: alb.title,
+                          artist: alb.artist,
+                          image: img,
+                        })
+                      }
+                    >
+                      <div className="collection-cover-wrap">
+                        <img
+                          src={img}
+                          className="collection-cover-img"
+                          alt={alb.title}
+                          onError={(e) => {
+                            e.target.src = 'https://via.placeholder.com/300?text=Album';
+                          }}
+                        />
+                        <span className="collection-type-badge">Album</span>
+                        <div className="collection-hover-play">
+                          <i className="fas fa-play"></i>
+                        </div>
+                      </div>
+                      <div className="collection-card-title">{alb.title}</div>
+                      <div className="collection-card-subtitle">{alb.artist}</div>
+                      <div className="collection-card-footer">
+                        <span>{alb.year ? alb.year : 'Album'}</span>
+                        <span style={{ color: 'var(--neon-cyan)' }}>
+                          <i className="fas fa-arrow-right"></i>
+                        </span>
+                      </div>
                     </div>
-                    <div className="collection-card-title">{alb.title}</div>
-                    <div className="collection-card-subtitle">{alb.artist || 'Artist'}</div>
-                    <div className="collection-card-footer">
-                      <button
-                        className="save-collection-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleAlbumLike(alb);
-                        }}
-                      >
-                        <i className={isAlbumLiked(alb.id, alb.title) ? 'fas fa-bookmark' : 'far fa-bookmark'} style={{ color: isAlbumLiked(alb.id, alb.title) ? 'var(--neon-cyan)' : 'inherit' }}></i>
-                        <span>{isAlbumLiked(alb.id, alb.title) ? 'Saved' : 'Save'}</span>
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
 
-          {/* Playlist Results */}
+          {/* 4. Playlist Results */}
           {resultsData.type === 'playlist' && (
             <div className="music-section">
-              <div className="section-title"><i className="fas fa-list" style={{ color: 'var(--neon-pink)' }}></i> Playlists Found</div>
+              <div className="section-header">
+                <div className="section-title">
+                  <i className="fas fa-list"></i> Playlists Found ({resultsData.data.length})
+                </div>
+              </div>
               <div className="collection-grid">
-                {resultsData.data.map((pl, idx) => (
-                  <div
-                    key={idx}
-                    className="collection-card"
-                    onClick={() => openModal('collection', { type: 'playlist', id: pl.id, title: pl.title, image: pl.image })}
-                  >
-                    <div className="collection-cover-wrap">
-                      <img src={pl.image || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60'} alt={pl.title} className="collection-cover-img" />
-                      <span className="collection-type-badge" style={{ color: 'var(--neon-pink)', borderColor: 'rgba(255,8,68,0.3)' }}>Playlist</span>
-                      <div className="collection-hover-play"><i className="fas fa-play"></i></div>
+                {resultsData.data.map((pl, idx) => {
+                  const img =
+                    pl.image || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60';
+                  return (
+                    <div
+                      key={pl.id || idx}
+                      className="collection-card"
+                      onClick={() =>
+                        openModal('collection', {
+                          type: 'playlist',
+                          id: pl.id,
+                          title: pl.title,
+                          image: img,
+                        })
+                      }
+                    >
+                      <div className="collection-cover-wrap">
+                        <img
+                          src={img}
+                          className="collection-cover-img"
+                          alt={pl.title}
+                          onError={(e) => {
+                            e.target.src = 'https://via.placeholder.com/300?text=Playlist';
+                          }}
+                        />
+                        <span
+                          className="collection-type-badge"
+                          style={{ color: 'var(--neon-pink)', borderColor: 'rgba(255,8,68,0.3)' }}
+                        >
+                          Playlist
+                        </span>
+                        <div className="collection-hover-play">
+                          <i className="fas fa-play"></i>
+                        </div>
+                      </div>
+                      <div className="collection-card-title">{pl.title}</div>
+                      <div className="collection-card-subtitle">{pl.artist || 'Curated Playlist'}</div>
+                      <div className="collection-card-footer">
+                        <span>{pl.count ? `${pl.count} Songs` : 'Playlist'}</span>
+                        <span style={{ color: 'var(--neon-pink)' }}>
+                          <i className="fas fa-arrow-right"></i>
+                        </span>
+                      </div>
                     </div>
-                    <div className="collection-card-title">{pl.title}</div>
-                    <div className="collection-card-subtitle">{pl.count ? `${pl.count} Songs` : 'Curated'}</div>
-                    <div className="collection-card-footer">
-                      <button
-                        className="save-collection-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          togglePlaylistLike(pl);
-                        }}
-                      >
-                        <i className={isPlaylistLiked(pl.id, pl.title) ? 'fas fa-bookmark' : 'far fa-bookmark'} style={{ color: isPlaylistLiked(pl.id, pl.title) ? 'var(--neon-cyan)' : 'inherit' }}></i>
-                        <span>{isPlaylistLiked(pl.id, pl.title) ? 'Saved' : 'Save'}</span>
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -461,72 +845,3 @@ export default function SearchView() {
   );
 }
 
-// Sub-component for rendering a track item row
-function TrackItem({ item, index, queue, isTrackLiked, toggleTrackLike, playMusic, openModal }) {
-  const trackName = item.track || item.name;
-  const artistName = item.artist?.name || item.artist || 'Unknown';
-  const imgUrl = item.image || item.thumbnail || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60';
-  const liked = isTrackLiked(trackName, artistName);
-  const ytQuery = `${trackName} ${artistName}`;
-
-  return (
-    <div className="track-item">
-      <div
-        className="track-thumbnail-wrap"
-        onClick={() => playMusic(trackName, artistName, imgUrl, queue, index)}
-      >
-        <img
-          src={imgUrl}
-          className="track-thumbnail-img"
-          alt={trackName}
-          onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60'; }}
-        />
-      </div>
-      <div
-        className="track-info"
-        onClick={() => playMusic(trackName, artistName, imgUrl, queue, index)}
-      >
-        <div className="track-name">{index + 1}. {trackName}</div>
-        <div className="track-stats">
-          <i className="fas fa-microphone"></i> {artistName}
-        </div>
-      </div>
-      <div className="track-actions">
-        <i
-          className={liked ? 'fas fa-heart' : 'far fa-heart'}
-          style={{ color: liked ? 'var(--neon-pink)' : 'var(--text-muted)', cursor: 'pointer', fontSize: '17px' }}
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleTrackLike(trackName, artistName, imgUrl);
-          }}
-          title={liked ? 'Unlike' : 'Like'}
-        ></i>
-        <i
-          className="fas fa-plus"
-          style={{ color: 'var(--text-muted)', cursor: 'pointer', fontSize: '15px' }}
-          onClick={(e) => {
-            e.stopPropagation();
-            openModal('addToPl', { track: trackName, artist: artistName, image: imgUrl });
-          }}
-          title="Add to Playlist"
-        ></i>
-        <a
-          href={`https://www.youtube.com/results?search_query=${encodeURIComponent(ytQuery)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="yt-link"
-          title="Watch on YouTube"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <i className="fab fa-youtube"></i>
-        </a>
-        <div
-          className="track-play"
-          onClick={() => playMusic(trackName, artistName, imgUrl, queue, index)}
-        >
-          <i className="fas fa-play"></i>
-        </div>
-      </div>
-    </div>
-  );
-}

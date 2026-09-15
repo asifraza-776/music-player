@@ -60,11 +60,15 @@ export function UIProvider({ children }) {
     setModalData(null);
   }, []);
 
+  const [pendingArtistSearch, setPendingArtistSearch] = useState('');
+
   return (
     <UIContext.Provider
       value={{
         currentView,
         setCurrentView,
+        pendingArtistSearch,
+        setPendingArtistSearch,
         activeModal,
         modalData,
         openModal,
