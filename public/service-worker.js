@@ -1,4 +1,4 @@
-const CACHE_NAME = 'melodysphere-v25-player-bar-restored';
+const CACHE_NAME = 'melodysphere-v26-desi-charts';
 const OFFLINE_PAGE = '/offline.html';
 
 const APP_SHELL = [

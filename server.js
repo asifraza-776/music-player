@@ -342,27 +342,62 @@ app.get("/api/track/search", async (req, res) => {
   }
 });
 
-// Get Charts (Top Artists with Images)
-app.get("/api/charts", async (req, res) => {
+// Curated Top Artists (India & Pakistan)
+const TOP_DESI_ARTISTS = [
+  { name: "Arijit Singh", country: "india", tag: "Romantic / Bollywood", listeners: 24500000, playcount: 142000000, image: "https://c.saavncdn.com/artists/Arijit_Singh_004_20241118063717_500x500.jpg" },
+  { name: "Atif Aslam", country: "pakistan", tag: "Romantic / Pop", listeners: 22400000, playcount: 128000000, image: "https://c.saavncdn.com/953/club-ambition-Unknown-2024-20240628202752-500x500.jpg" },
+  { name: "Nusrat Fateh Ali Khan", country: "pakistan", tag: "Sufi / Qawwali Legend", listeners: 20300000, playcount: 115000000, image: "https://c.saavncdn.com/796/Sufi-Splendors-Hindi-2014-500x500.jpg" },
+  { name: "Shreya Ghoshal", country: "india", tag: "Melody Queen / Bollywood", listeners: 19800000, playcount: 110000000, image: "https://c.saavncdn.com/artists/Shreya_Ghoshal_007_20241101074144_500x500.jpg" },
+  { name: "Rahat Fateh Ali Khan", country: "pakistan", tag: "Sufi / Classical", listeners: 18700000, playcount: 98000000, image: "https://c.saavncdn.com/068/Teri-Mohabbat-Unknown-2026-20260708075743-500x500.jpg" },
+  { name: "Diljit Dosanjh", country: "india", tag: "Punjabi / Global Pop", listeners: 17200000, playcount: 92000000, image: "https://c.saavncdn.com/artists/Diljit_Dosanjh_005_20231025073054_500x500.jpg" },
+  { name: "Sonu Nigam", country: "india", tag: "Evergreen / Bollywood", listeners: 16400000, playcount: 88000000, image: "https://c.saavncdn.com/artists/Sonu_Nigam_003_20260813182013_500x500.jpg" },
+  { name: "AP Dhillon", country: "india", tag: "Punjabi Wave / Hip-Hop", listeners: 15600000, playcount: 84000000, image: "https://c.saavncdn.com/artists/AP_Dhillon_004_20251023102150_500x500.jpg" },
+  { name: "Kaifi Khalil", country: "pakistan", tag: "Balochi / Soul / Pop", listeners: 13500000, playcount: 76000000, image: "https://c.saavncdn.com/371/Kahani-Suno-2-0-feat-Kaifi-Khalil-Slowed-and-Reverbed-English-2023-20230216024616-500x500.jpg" },
+  { name: "Kishore Kumar", country: "india", tag: "Golden Era / Legend", listeners: 18900000, playcount: 105000000, image: "https://c.saavncdn.com/artists/Kishore_Kumar_500x500.jpg" },
+  { name: "Lata Mangeshkar", country: "india", tag: "Nightingale of India", listeners: 19100000, playcount: 108000000, image: "https://c.saavncdn.com/artists/Lata_Mangeshkar_004_20230623105323_500x500.jpg" },
+  { name: "Ali Zafar", country: "pakistan", tag: "Pop / Rock / Folk", listeners: 11600000, playcount: 62000000, image: "https://c.saavncdn.com/870/Aurat-A-Poem-by-Ali-Zafar-Hindi-2019-20260709163329-500x500.jpg" },
+  { name: "Neha Kakkar", country: "india", tag: "Dance / Party Hits", listeners: 16200000, playcount: 86000000, image: "https://c.saavncdn.com/artists/Neha_Kakkar_007_20241212115832_500x500.jpg" },
+  { name: "Talha Anjum", country: "pakistan", tag: "Urdu Rap / Hip-Hop", listeners: 11400000, playcount: 65000000, image: "https://c.saavncdn.com/594/No-Other-Place-feat-Talha-Anjum-English-2022-20220721235551-500x500.jpg" },
+  { name: "KK", country: "india", tag: "Soulful / Rock Romantic", listeners: 15300000, playcount: 82000000, image: "https://c.saavncdn.com/artists/KK_500x500.jpg" },
+  { name: "Asim Azhar", country: "pakistan", tag: "Youth Pop / Melodic", listeners: 10900000, playcount: 58000000, image: "https://c.saavncdn.com/988/Aarzu-Asim-Azhar-Edm-Mix-Urdu-2026-20260611145427-500x500.jpg" },
+  { name: "Jubin Nautiyal", country: "india", tag: "Acoustic / Romantic", listeners: 14800000, playcount: 79000000, image: "https://c.saavncdn.com/artists/Jubin_Nautiyal_003_20231130204020_500x500.jpg" },
+  { name: "Badshah", country: "india", tag: "Commercial / Rap", listeners: 13900000, playcount: 74000000, image: "https://c.saavncdn.com/artists/Badshah_006_20241118064015_500x500.jpg" },
+  { name: "Abdul Hannan", country: "pakistan", tag: "Indie Pop / Lo-Fi", listeners: 9800000, playcount: 51000000, image: "https://c.saavncdn.com/382/Abdullah-Hindi-1980-20190924060933-500x500.jpg" },
+  { name: "Kumar Sanu", country: "india", tag: "90s King of Romance", listeners: 14100000, playcount: 75000000, image: "https://c.saavncdn.com/artists/Kumar_Sanu_500x500.jpg" },
+  { name: "Alka Yagnik", country: "india", tag: "90s Queen of Melody", listeners: 15800000, playcount: 83000000, image: "https://c.saavncdn.com/artists/Alka_Yagnik_002_20220314192930_500x500.jpg" },
+  { name: "Bilal Saeed", country: "pakistan", tag: "Punjabi Pop / R&B", listeners: 10200000, playcount: 54000000, image: "https://c.saavncdn.com/476/Dhund-Ke-Dikha-Hindi-2020-20220510011352-500x500.jpg" },
+  { name: "Sid Sriram", country: "india", tag: "Carnatic / Soul Fusion", listeners: 11900000, playcount: 61000000, image: "https://c.saavncdn.com/artists/Sid_Sriram_005_20240425180600_500x500.jpg" },
+  { name: "Mohit Chauhan", country: "india", tag: "Silk Voice / Indie Folk", listeners: 12700000, playcount: 68000000, image: "https://c.saavncdn.com/artists/Mohit_Chauhan_500x500.jpg" },
+  { name: "Shafqat Amanat Ali", country: "pakistan", tag: "Classical / Fusion", listeners: 12300000, playcount: 64000000, image: "https://c.saavncdn.com/904/Tere-Naal-Love-Ho-Gaya-Hindi-2011-20260907165855-500x500.jpg" },
+  { name: "Darshan Raval", country: "india", tag: "Youth Anthem / Pop", listeners: 12400000, playcount: 66000000, image: "https://c.saavncdn.com/artists/Darshan_Raval_006_20250807060352_500x500.jpg" },
+  { name: "Armaan Malik", country: "india", tag: "Pop / Romantic", listeners: 11200000, playcount: 59000000, image: "https://c.saavncdn.com/artists/Armaan_Malik_006_20260813132832_500x500.jpg" },
+  { name: "Sunidhi Chauhan", country: "india", tag: "Powerhouse / Dance", listeners: 13400000, playcount: 71000000, image: "https://c.saavncdn.com/artists/Sunidhi_Chauhan_005_20250515061617_500x500.jpg" },
+  { name: "Abida Parveen", country: "pakistan", tag: "Sufiana Kalam / Legend", listeners: 11800000, playcount: 63000000, image: "https://c.saavncdn.com/338/Best-Of-Abida-Parveen-Punjabi-2025-20251106053038-500x500.jpg" },
+  { name: "Hasan Raheem", country: "pakistan", tag: "Indie / R&B", listeners: 8600000, playcount: 45000000, image: "https://c.saavncdn.com/436/Husn-Hindi-2023-20231129054140-500x500.jpg" },
+  { name: "Anuv Jain", country: "india", tag: "Acoustic / Storyteller", listeners: 10800000, playcount: 57000000, image: "https://c.saavncdn.com/artists/Anuv_Jain_001_20231206073013_500x500.jpg" },
+  { name: "King", country: "india", tag: "Pop / Hip-Hop", listeners: 12100000, playcount: 64000000, image: "https://c.saavncdn.com/734/Champagne-Talk-Hindi-2022-20221008011951-500x500.jpg" },
+  { name: "Farhan Saeed", country: "pakistan", tag: "Pop / OST Romance", listeners: 9200000, playcount: 48000000, image: "https://c.saavncdn.com/089/Thodi-Der-Shreya-Ghosal-Farhan-Saeed-Vocals-Only-Hindi-2026-20260820123601-500x500.jpg" },
+  { name: "Ghulam Ali", country: "pakistan", tag: "Ghazal Maestro", listeners: 10500000, playcount: 55000000, image: "https://c.saavncdn.com/337/Teri-Judai-Mein-Hindi-2018-20181018-500x500.jpg" }
+];
+
+// Get Charts (Top Indian & Pakistani Artists)
+app.get("/api/charts", (req, res) => {
   try {
-    console.log("📈 Fetching Top Charts...");
-    const response = await fetch(
-      `https://ws.audioscrobbler.com/2.0/?method=chart.gettopartists&api_key=${LASTFM_API_KEY}&format=json&limit=16`
-    );
-    const data = await response.json();
-    
-    if (data.artists?.artist) {
-       // Fetch images in parallel for speed
-       const artistsWithImages = await Promise.all(data.artists.artist.map(async (artist) => {
-          const image = await getArtistImage(artist.name);
-          return { ...artist, image: image };
-       }));
-       data.artists.artist = artistsWithImages;
+    const country = (req.query.country || 'all').toLowerCase();
+    let list = TOP_DESI_ARTISTS;
+    if (country === 'india') {
+      list = TOP_DESI_ARTISTS.filter(a => a.country === 'india');
+    } else if (country === 'pakistan') {
+      list = TOP_DESI_ARTISTS.filter(a => a.country === 'pakistan');
     }
-    
-    res.json(data);
+    res.json({
+      success: true,
+      artists: {
+        artist: list
+      }
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 

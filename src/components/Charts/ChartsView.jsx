@@ -9,6 +9,7 @@ function formatNumber(num) {
 }
 
 export default function ChartsView() {
+  const [activeTab, setActiveTab] = useState('all'); // 'all' | 'india' | 'pakistan'
   const [topArtists, setTopArtists] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const { setPendingArtistSearch, setCurrentView } = useUI();
@@ -17,10 +18,11 @@ export default function ChartsView() {
     async function loadCharts() {
       setIsLoading(true);
       try {
-        const res = await fetch('/api/charts');
+        const url = activeTab === 'all' ? '/api/charts' : `/api/charts?country=${activeTab}`;
+        const res = await fetch(url);
         const data = await res.json();
         if (data.artists && data.artists.artist) {
-          setTopArtists(data.artists.artist.slice(0, 16));
+          setTopArtists(data.artists.artist);
         }
       } catch (err) {
         console.warn('Failed to load charts:', err);
@@ -29,7 +31,7 @@ export default function ChartsView() {
       }
     }
     loadCharts();
-  }, []);
+  }, [activeTab]);
 
   const handleSelectArtist = (name) => {
     if (setPendingArtistSearch) {
@@ -41,9 +43,32 @@ export default function ChartsView() {
   return (
     <div id="chartsView">
       <div className="charts-section">
-        <div className="section-header">
+        <div className="section-header" style={{ flexWrap: 'wrap', gap: '15px' }}>
           <div className="section-title">
-            <i className="fas fa-chart-line"></i> Global Top Artists
+            <i className="fas fa-chart-line"></i> Top Artists (India & Pakistan)
+          </div>
+          <div className="search-tabs" style={{ marginBottom: 0, gap: '8px' }}>
+            <button
+              className={`tab-btn ${activeTab === 'all' ? 'active' : ''}`}
+              onClick={() => setActiveTab('all')}
+              style={{ padding: '8px 18px', fontSize: '13.5px' }}
+            >
+              🔥 All Top Artists ({topArtists.length})
+            </button>
+            <button
+              className={`tab-btn ${activeTab === 'india' ? 'active' : ''}`}
+              onClick={() => setActiveTab('india')}
+              style={{ padding: '8px 18px', fontSize: '13.5px' }}
+            >
+              🇮🇳 India
+            </button>
+            <button
+              className={`tab-btn ${activeTab === 'pakistan' ? 'active' : ''}`}
+              onClick={() => setActiveTab('pakistan')}
+              style={{ padding: '8px 18px', fontSize: '13.5px' }}
+            >
+              🇵🇰 Pakistan
+            </button>
           </div>
         </div>
 
@@ -58,6 +83,7 @@ export default function ChartsView() {
           <div className="charts-grid" id="chartsGrid">
             {topArtists.map((artist, index) => {
               const imgUrl = artist.image || 'https://via.placeholder.com/150?text=Artist';
+              const countryFlag = artist.country === 'pakistan' ? '🇵🇰 Pakistan' : '🇮🇳 India';
               return (
                 <div
                   key={artist.name || index}
@@ -74,7 +100,12 @@ export default function ChartsView() {
                     }}
                   />
                   <div className="chart-name">{artist.name}</div>
-                  <div style={{ fontSize: '12px', color: '#666' }}>
+                  {artist.tag && (
+                    <div style={{ fontSize: '11px', color: 'var(--neon-cyan)', marginTop: '4px', fontWeight: '500' }}>
+                      {countryFlag} • {artist.tag}
+                    </div>
+                  )}
+                  <div style={{ fontSize: '12px', color: '#a0a0b0', marginTop: '3px' }}>
                     {formatNumber(artist.listeners || artist.playcount)} listeners
                   </div>
                 </div>
