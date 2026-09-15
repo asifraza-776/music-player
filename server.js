@@ -3,6 +3,15 @@ const path = require("path");
 const os = require("os");
 const fs = require("fs");
 require("dotenv").config();
+
+// Protect server from crashing on external network ECONNRESET / aborted fetches
+process.on('uncaughtException', (err) => {
+  console.error('[Process Uncaught Exception]:', err && err.message ? err.message : err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[Process Unhandled Rejection]:', reason && reason.message ? reason.message : reason);
+});
+
 const app = express();
 
 // Database initialization
