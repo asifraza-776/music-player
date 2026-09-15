@@ -322,6 +322,31 @@ export function PlayerProvider({ children }) {
     playTrackByIndex(prevIndex);
   }, [playlistQueue, currentTrackIndex, playTrackByIndex]);
 
+  const closePlayer = useCallback(() => {
+    isChangingSongRef.current = true;
+    setIsPlaying(false);
+    setIsPlayerVisible(false);
+    setCurrentTrack(null);
+
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current.removeAttribute('src');
+      audioRef.current.load();
+    }
+    if (ytPlayerRef.current && ytPlayerRef.current.stopVideo) {
+      try {
+        ytPlayerRef.current.stopVideo();
+        ytPlayerRef.current.pauseVideo();
+      } catch (e) {}
+    }
+
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = 'none';
+      navigator.mediaSession.metadata = null;
+    }
+  }, []);
+
   const handleTrackEnded = useCallback(() => {
     if (sleepTimer?.mode === 'end-of-song') {
       setSleepTimerState(null);
@@ -387,31 +412,6 @@ export function PlayerProvider({ children }) {
       if (prev === 'all') return 'one';
       return 'off';
     });
-  }, []);
-
-  const closePlayer = useCallback(() => {
-    isChangingSongRef.current = true;
-    setIsPlaying(false);
-    setIsPlayerVisible(false);
-    setCurrentTrack(null);
-
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-      audioRef.current.removeAttribute('src');
-      audioRef.current.load();
-    }
-    if (ytPlayerRef.current && ytPlayerRef.current.stopVideo) {
-      try {
-        ytPlayerRef.current.stopVideo();
-        ytPlayerRef.current.pauseVideo();
-      } catch (e) {}
-    }
-
-    if ('mediaSession' in navigator) {
-      navigator.mediaSession.playbackState = 'none';
-      navigator.mediaSession.metadata = null;
-    }
   }, []);
 
   // Sleep Timer countdown listener
