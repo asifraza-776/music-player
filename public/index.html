@@ -48,17 +48,19 @@
 
 <body>
     <div class="navbar">
-        <div class="container">
+        <div class="container navbar-container">
             <div class="header-content">
-                <div class="logo">
-                    <i class="fas fa-music"></i> Melody<span style="background: linear-gradient(135deg, #ffe6f0, #ffb6c1); -webkit-background-clip: text;">Sphere</span>
+                <div class="logo-row">
+                    <div class="logo">
+                        <i class="fas fa-music"></i> Melody<span style="background: linear-gradient(135deg, #ffe6f0, #ffb6c1); -webkit-background-clip: text;">Sphere</span>
+                    </div>
+                    <button id="pwaInstallBtn" class="pwa-header-btn" onclick="installPWA()" style="display:none;"><i class="fas fa-download"></i> <span class="pwa-btn-text">Install App</span></button>
                 </div>
                 <div class="nav-links">
-                    <button id="pwaInstallBtn" class="pwa-header-btn" onclick="installPWA()" style="display:none;"><i class="fas fa-download"></i> Install App</button>
-                    <button class="nav-btn active" data-view="search" onclick="showSearch()"><i class="fas fa-search"></i> Search</button>
-                    <button class="nav-btn" data-view="explore" onclick="showExplore()"><i class="fas fa-compass"></i> Explore</button>
-                    <button class="nav-btn" data-view="charts" onclick="showCharts()"><i class="fas fa-chart-line"></i> Charts</button>
-                    <button class="nav-btn" data-view="library" onclick="showLibrary()"><i class="fas fa-heart"></i> Liked & Library</button>
+                    <button class="nav-btn active" data-view="search" onclick="showSearch()"><i class="fas fa-search"></i> <span>Search</span></button>
+                    <button class="nav-btn" data-view="explore" onclick="showExplore()"><i class="fas fa-compass"></i> <span>Explore</span></button>
+                    <button class="nav-btn" data-view="charts" onclick="showCharts()"><i class="fas fa-chart-line"></i> <span>Charts</span></button>
+                    <button class="nav-btn" data-view="library" onclick="showLibrary()"><i class="fas fa-heart"></i> <span class="nav-text-desktop">Liked & Library</span><span class="nav-text-mobile">Library</span></button>
                 </div>
             </div>
         </div>
