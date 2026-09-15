@@ -43,5 +43,54 @@
         }
       ]
     }
-  ]
+  ],
+  "users": {
+    "default_user": {
+      "likedTracks": [
+        {
+          "track": "Humdard (From \"Ek Villain\")",
+          "artist": "Arijit Singh",
+          "image": "https://c.saavncdn.com/840/Best-Of-Arijit-Singh-Collection-Of-Romantic-Songs-Hindi-2025-20251203161112-500x500.jpg",
+          "id": ""
+        }
+      ],
+      "likedAlbums": [],
+      "likedPlaylists": [
+        {
+          "id": "58057412",
+          "title": "Let's Play - Arijit Singh - Hindi",
+          "image": "https://c.saavncdn.com/editorial/Let_sPlayArijitSinghHindi_20240812070403.jpg",
+          "count": 49
+        },
+        {
+          "id": "154546814",
+          "title": "90s Romance - Hindi",
+          "image": "https://c.saavncdn.com/editorial/90sRomanceHindi_20260302042658.jpg?bch=1788762631",
+          "count": 42
+        },
+        {
+          "id": "32049168",
+          "title": "Bollywood Bappa",
+          "image": "https://c.saavncdn.com/editorial/BollywoodBappa_20260908050242.jpg?bch=1788848491",
+          "count": 20
+        }
+      ],
+      "customPlaylists": [
+        {
+          "id": "pl_1789376736439_jtxs",
+          "name": "hello",
+          "description": "new",
+          "createdAt": "2026-09-14T09:05:36.439Z",
+          "image": "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60",
+          "tracks": [
+            {
+              "track": "Tujhe Dekha To",
+              "artist": "Lata Mangeshkar, Kumar Sanu",
+              "image": ""
+            }
+          ]
+        }
+      ]
+    }
+  }
 }

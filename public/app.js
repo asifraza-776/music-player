@@ -127,6 +127,23 @@ function loadLocalLibrary() {
     updateLibraryCounters();
 }
 
+// Unique User ID per device/browser for isolated personal library
+function getUserId() {
+    let uid = localStorage.getItem('melodysphere_user_id');
+    if (!uid) {
+        uid = 'usr_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 9);
+        localStorage.setItem('melodysphere_user_id', uid);
+    }
+    return uid;
+}
+
+// Wrapper to include x-user-id on user-specific library requests
+function userApiFetch(url, options = {}) {
+    options = { ...options };
+    options.headers = { ...(options.headers || {}), 'x-user-id': getUserId() };
+    return fetch(url, options);
+}
+
 function saveLocalLibrary() {
     try {
         localStorage.setItem('melodysphere_library', JSON.stringify(userLibrary));
@@ -138,7 +155,7 @@ function saveLocalLibrary() {
 
 async function syncLibraryWithBackend() {
     try {
-        const res = await fetch('/api/user/library');
+        const res = await userApiFetch('/api/user/library');
         const data = await res.json();
         if (data.success) {
             userLibrary.likedTracks = data.likedTracks || [];
@@ -216,7 +233,7 @@ function showLibrary() {
     document.getElementById('libraryView').style.display = 'block';
     document.getElementById('results').style.display = 'none';
     setActiveNav('library');
-    renderLibrary();
+    switchLibraryTab(currentLibraryTab || 'songs');
 }
 
 
@@ -1266,7 +1283,7 @@ async function toggleTrackLike(track, artist, image = '', el = null) {
 
     // Sync with backend API
     try {
-        await fetch('/api/user/library/like', {
+        await userApiFetch('/api/user/library/like', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ type: 'track', item: { track, artist, image } })
@@ -1290,7 +1307,7 @@ async function toggleAlbumLike(album) {
     if (currentView === 'library') renderLibrary();
 
     try {
-        await fetch('/api/user/library/like', {
+        await userApiFetch('/api/user/library/like', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ type: 'album', item: album })
@@ -1314,7 +1331,7 @@ async function togglePlaylistLike(playlist) {
     if (currentView === 'library') renderLibrary();
 
     try {
-        await fetch('/api/user/library/like', {
+        await userApiFetch('/api/user/library/like', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ type: 'playlist', item: playlist })
@@ -1377,7 +1394,7 @@ async function submitCreatePlaylist() {
     }
 
     try {
-        const res = await fetch('/api/playlists', {
+        const res = await userApiFetch('/api/playlists', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, description: desc })
@@ -1454,7 +1471,7 @@ async function addTrackToPlaylist(playlistId) {
     if (!targetTrackForPlaylist) return;
 
     try {
-        const res = await fetch(`/api/playlists/${playlistId}/tracks`, {
+        const res = await userApiFetch(`/api/playlists/${playlistId}/tracks`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(targetTrackForPlaylist)
@@ -1480,7 +1497,7 @@ async function deleteCustomPlaylist(playlistId) {
     if (!confirm("Are you sure you want to delete this playlist?")) return;
 
     try {
-        const res = await fetch(`/api/playlists/${playlistId}`, { method: 'DELETE' });
+        const res = await userApiFetch(`/api/playlists/${playlistId}`, { method: 'DELETE' });
         const data = await res.json();
         if (data.success) {
             userLibrary.customPlaylists = data.playlists;
@@ -1494,7 +1511,7 @@ async function deleteCustomPlaylist(playlistId) {
 
 async function removeTrackFromCustomPlaylist(playlistId, trackIndex) {
     try {
-        const res = await fetch(`/api/playlists/${playlistId}/tracks/${trackIndex}`, { method: 'DELETE' });
+        const res = await userApiFetch(`/api/playlists/${playlistId}/tracks/${trackIndex}`, { method: 'DELETE' });
         const data = await res.json();
         if (data.success) {
             const idx = userLibrary.customPlaylists.findIndex(p => p.id === playlistId);
@@ -1519,7 +1536,11 @@ function switchLibraryTab(tab) {
             else btn.classList.remove('active');
         }
         if (container) {
-            container.style.display = (t === tab) ? (t === 'songs' ? 'flex' : 'grid') : 'none';
+            if (t === tab) {
+                container.style.setProperty('display', 'grid', 'important');
+            } else {
+                container.style.setProperty('display', 'none', 'important');
+            }
         }
     });
     renderLibrary();

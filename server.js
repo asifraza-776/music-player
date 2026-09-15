@@ -614,68 +614,89 @@ app.get("/api/saavn/stream", async (req, res) => {
 // 💾 DATABASE & USER LIBRARY REST ROUTES
 // ==========================================
 
-// Get entire library (Liked tracks, albums, playlists & custom playlists)
-app.get("/api/user/library", (req, res) => {
+// Helper to isolate library data per user / device
+function getUserData(req) {
+  const userId = (req.headers['x-user-id'] || req.query.userId || '').toString().trim() || 'default_user';
   const db = readDB();
-  res.json({ success: true, ...db });
+  if (!db.users) db.users = {};
+  
+  if (!db.users[userId]) {
+    // If it's default_user or legacy, initialize with existing data if present
+    db.users[userId] = {
+      likedTracks: (userId === 'default_user' && Array.isArray(db.likedTracks)) ? [...db.likedTracks] : [],
+      likedAlbums: (userId === 'default_user' && Array.isArray(db.likedAlbums)) ? [...db.likedAlbums] : [],
+      likedPlaylists: (userId === 'default_user' && Array.isArray(db.likedPlaylists)) ? [...db.likedPlaylists] : [],
+      customPlaylists: (userId === 'default_user' && Array.isArray(db.customPlaylists)) ? [...db.customPlaylists] : []
+    };
+    writeDB(db);
+  }
+  
+  const userLib = db.users[userId];
+  return { db, userLib, userId };
+}
+
+// Get entire library for this user (Liked tracks, albums, playlists & custom playlists)
+app.get("/api/user/library", (req, res) => {
+  const { userLib } = getUserData(req);
+  res.json({ success: true, ...userLib });
 });
 
-// Toggle Like (track, album, or playlist)
+// Toggle Like (track, album, or playlist) per user
 app.post("/api/user/library/like", (req, res) => {
   const { type, item } = req.body;
   if (!type || !item) return res.status(400).json({ success: false, error: "Missing type or item" });
 
-  const db = readDB();
+  const { db, userLib } = getUserData(req);
   let liked = false;
 
   if (type === "track") {
-    if (!db.likedTracks) db.likedTracks = [];
-    const idx = db.likedTracks.findIndex(t => t.track.toLowerCase() === item.track.toLowerCase() && t.artist.toLowerCase() === item.artist.toLowerCase());
+    if (!userLib.likedTracks) userLib.likedTracks = [];
+    const idx = userLib.likedTracks.findIndex(t => t.track.toLowerCase() === item.track.toLowerCase() && t.artist.toLowerCase() === item.artist.toLowerCase());
     if (idx > -1) {
-      db.likedTracks.splice(idx, 1);
+      userLib.likedTracks.splice(idx, 1);
       liked = false;
     } else {
-      db.likedTracks.unshift({ track: item.track, artist: item.artist, image: item.image || "", id: item.id || "" });
+      userLib.likedTracks.unshift({ track: item.track, artist: item.artist, image: item.image || "", id: item.id || "" });
       liked = true;
     }
   } else if (type === "album") {
-    if (!db.likedAlbums) db.likedAlbums = [];
-    const idx = db.likedAlbums.findIndex(a => (a.id && item.id && a.id === item.id) || (a.title && item.title && a.title.toLowerCase() === item.title.toLowerCase()));
+    if (!userLib.likedAlbums) userLib.likedAlbums = [];
+    const idx = userLib.likedAlbums.findIndex(a => (a.id && item.id && a.id === item.id) || (a.title && item.title && a.title.toLowerCase() === item.title.toLowerCase()));
     if (idx > -1) {
-      db.likedAlbums.splice(idx, 1);
+      userLib.likedAlbums.splice(idx, 1);
       liked = false;
     } else {
-      db.likedAlbums.unshift({ id: item.id, title: item.title, artist: item.artist, image: item.image, songCount: item.songCount });
+      userLib.likedAlbums.unshift({ id: item.id, title: item.title, artist: item.artist, image: item.image, songCount: item.songCount });
       liked = true;
     }
   } else if (type === "playlist") {
-    if (!db.likedPlaylists) db.likedPlaylists = [];
-    const idx = db.likedPlaylists.findIndex(p => (p.id && item.id && p.id === item.id) || (p.title && item.title && p.title.toLowerCase() === item.title.toLowerCase()));
+    if (!userLib.likedPlaylists) userLib.likedPlaylists = [];
+    const idx = userLib.likedPlaylists.findIndex(p => (p.id && item.id && p.id === item.id) || (p.title && item.title && p.title.toLowerCase() === item.title.toLowerCase()));
     if (idx > -1) {
-      db.likedPlaylists.splice(idx, 1);
+      userLib.likedPlaylists.splice(idx, 1);
       liked = false;
     } else {
-      db.likedPlaylists.unshift({ id: item.id, title: item.title, image: item.image, count: item.count });
+      userLib.likedPlaylists.unshift({ id: item.id, title: item.title, image: item.image, count: item.count });
       liked = true;
     }
   }
 
   writeDB(db);
-  res.json({ success: true, liked, ...db });
+  res.json({ success: true, liked, ...userLib });
 });
 
-// Custom Playlists CRUD
+// Custom Playlists CRUD per user
 app.get("/api/playlists", (req, res) => {
-  const db = readDB();
-  res.json({ success: true, playlists: db.customPlaylists || [] });
+  const { userLib } = getUserData(req);
+  res.json({ success: true, playlists: userLib.customPlaylists || [] });
 });
 
 app.post("/api/playlists", (req, res) => {
   const { name, description } = req.body;
   if (!name || !name.trim()) return res.status(400).json({ success: false, error: "Playlist name is required" });
 
-  const db = readDB();
-  if (!db.customPlaylists) db.customPlaylists = [];
+  const { db, userLib } = getUserData(req);
+  if (!userLib.customPlaylists) userLib.customPlaylists = [];
   const newPlaylist = {
     id: 'pl_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
     name: name.trim(),
@@ -684,24 +705,24 @@ app.post("/api/playlists", (req, res) => {
     image: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=60",
     tracks: []
   };
-  db.customPlaylists.unshift(newPlaylist);
+  userLib.customPlaylists.unshift(newPlaylist);
   writeDB(db);
-  res.json({ success: true, playlist: newPlaylist, playlists: db.customPlaylists });
+  res.json({ success: true, playlist: newPlaylist, playlists: userLib.customPlaylists });
 });
 
 app.delete("/api/playlists/:id", (req, res) => {
-  const db = readDB();
-  db.customPlaylists = (db.customPlaylists || []).filter(p => p.id !== req.params.id);
+  const { db, userLib } = getUserData(req);
+  userLib.customPlaylists = (userLib.customPlaylists || []).filter(p => p.id !== req.params.id);
   writeDB(db);
-  res.json({ success: true, playlists: db.customPlaylists });
+  res.json({ success: true, playlists: userLib.customPlaylists });
 });
 
 app.post("/api/playlists/:id/tracks", (req, res) => {
   const { track, artist, image } = req.body;
   if (!track || !artist) return res.status(400).json({ success: false, error: "Track and artist are required" });
 
-  const db = readDB();
-  const playlist = (db.customPlaylists || []).find(p => p.id === req.params.id);
+  const { db, userLib } = getUserData(req);
+  const playlist = (userLib.customPlaylists || []).find(p => p.id === req.params.id);
   if (!playlist) return res.status(404).json({ success: false, error: "Playlist not found" });
 
   if (!playlist.tracks) playlist.tracks = [];
@@ -719,8 +740,8 @@ app.post("/api/playlists/:id/tracks", (req, res) => {
 });
 
 app.delete("/api/playlists/:id/tracks/:trackIndex", (req, res) => {
-  const db = readDB();
-  const playlist = (db.customPlaylists || []).find(p => p.id === req.params.id);
+  const { db, userLib } = getUserData(req);
+  const playlist = (userLib.customPlaylists || []).find(p => p.id === req.params.id);
   if (!playlist) return res.status(404).json({ success: false, error: "Playlist not found" });
 
   const idx = parseInt(req.params.trackIndex);
