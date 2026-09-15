@@ -1,8 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import { useUI } from './UIContext';
 
 const PlayerContext = createContext();
 
 export function PlayerProvider({ children }) {
+  const { showToast } = useUI();
   const [currentTrack, setCurrentTrack] = useState(null); // { track, artist, image, id }
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -418,6 +420,7 @@ export function PlayerProvider({ children }) {
     setIsPlaying(false);
     setIsPlayerVisible(false);
     setCurrentTrack(null);
+    setSleepTimerState(null);
 
     if (audioRef.current) {
       audioRef.current.pause();
@@ -442,7 +445,14 @@ export function PlayerProvider({ children }) {
     const timer = sleepTimerRef.current;
     if (timer?.mode === 'end-of-song') {
       setSleepTimerState(null);
-      closePlayer();
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      if (ytPlayerRef.current && ytPlayerRef.current.pauseVideo) {
+        try { ytPlayerRef.current.pauseVideo(); } catch (e) {}
+      }
+      setIsPlaying(false);
+      if (showToast) showToast('Song ended. Sleep timer stopped playback! 🌙', '', 'info');
       return;
     }
 
@@ -460,7 +470,7 @@ export function PlayerProvider({ children }) {
     } else {
       playNext(true);
     }
-  }, [closePlayer, playNext]);
+  }, [playNext, showToast]);
 
   // Keep ref up to date
   handleTrackEndedRef.current = handleTrackEnded;
@@ -533,12 +543,19 @@ export function PlayerProvider({ children }) {
       if (remaining <= 0) {
         clearInterval(timer);
         setSleepTimerState(null);
-        closePlayer();
+        if (audioRef.current) {
+          audioRef.current.pause();
+        }
+        if (ytPlayerRef.current && ytPlayerRef.current.pauseVideo) {
+          try { ytPlayerRef.current.pauseVideo(); } catch (e) {}
+        }
+        setIsPlaying(false);
+        if (showToast) showToast('Sleep timer ended. Goodnight! 🌙', '', 'info');
       }
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [sleepTimer, closePlayer]);
+  }, [sleepTimer, showToast]);
 
   const startSleepTimer = useCallback((minsOrMode) => {
     if (minsOrMode === 'end-of-song') {

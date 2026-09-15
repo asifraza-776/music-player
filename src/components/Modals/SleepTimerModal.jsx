@@ -111,6 +111,12 @@ export default function SleepTimerModal() {
 
           <div className="sleep-options-title">SELECT DURATION</div>
           <div className="sleep-options-grid">
+            <button className="sleep-opt-btn" onClick={() => handleSetTimer(5)}>
+              <i className="far fa-clock"></i> 5 Minutes
+            </button>
+            <button className="sleep-opt-btn" onClick={() => handleSetTimer(10)}>
+              <i className="far fa-clock"></i> 10 Minutes
+            </button>
             <button className="sleep-opt-btn" onClick={() => handleSetTimer(15)}>
               <i className="far fa-clock"></i> 15 Minutes
             </button>
