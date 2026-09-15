@@ -14,16 +14,41 @@ process.on('unhandledRejection', (reason) => {
 
 const app = express();
 
-// Database initialization
-const dataDir = path.join(__dirname, "data");
-if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+// Database initialization (supports local and Vercel serverless /tmp writable storage)
+const dataDir = process.env.VERCEL
+  ? path.join(os.tmpdir(), "data")
+  : path.join(__dirname, "data");
+
+if (!fs.existsSync(dataDir)) {
+  try {
+    fs.mkdirSync(dataDir, { recursive: true });
+  } catch (err) {
+    console.warn("Could not create dataDir:", err.message);
+  }
+}
+
 const DB_FILE = path.join(dataDir, "database.json");
+const SEED_DB_FILE = path.join(__dirname, "data", "database.json");
 
 function readDB() {
   try {
     if (!fs.existsSync(DB_FILE)) {
+      if (fs.existsSync(SEED_DB_FILE)) {
+        try {
+          const seedData = fs.readFileSync(SEED_DB_FILE, "utf8");
+          fs.writeFileSync(DB_FILE, seedData);
+          return JSON.parse(seedData);
+        } catch (copyErr) {
+          try {
+            const seedData = fs.readFileSync(SEED_DB_FILE, "utf8");
+            return JSON.parse(seedData);
+          } catch (e) {}
+        }
+      }
       const initial = { likedTracks: [], likedAlbums: [], likedPlaylists: [], customPlaylists: [] };
-      fs.writeFileSync(DB_FILE, JSON.stringify(initial, null, 2));
+      try {
+        fs.writeFileSync(DB_FILE, JSON.stringify(initial, null, 2));
+      } catch (e) {}
       return initial;
     }
     const raw = fs.readFileSync(DB_FILE, "utf8");

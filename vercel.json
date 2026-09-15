@@ -13,8 +13,27 @@
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
+      "src": "/api(.*)",
       "dest": "/server.js"
+    },
+    {
+      "src": "/assets/(.*)",
+      "dest": "/dist/assets/$1"
+    },
+    {
+      "src": "/service-worker.js",
+      "dest": "/dist/service-worker.js",
+      "headers": {
+        "cache-control": "no-cache, no-store, must-revalidate"
+      }
+    },
+    {
+      "src": "/dist/(.*)",
+      "dest": "/dist/$1"
+    },
+    {
+      "src": "/([^/]+\\.[a-zA-Z0-9]+)",
+      "dest": "/dist/$1"
     },
     {
       "handle": "filesystem"
