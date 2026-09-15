@@ -244,7 +244,7 @@ export function PlayerProvider({ children }) {
   }, []);
 
   const togglePlay = useCallback(() => {
-    if (playbackSource === 'jiosaavn' && audioRef.current) {
+    if (audioRef.current && audioRef.current.src) {
       if (audioRef.current.paused) {
         audioRef.current.play().catch(() => {});
         setIsPlaying(true);

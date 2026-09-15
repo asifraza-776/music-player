@@ -40,32 +40,30 @@ export default function MusicPlayer() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragProgress, setDragProgress] = useState(0);
 
-  const liked = currentTrack ? isTrackLiked(currentTrack.track, currentTrack.artist) : false;
+  const liked = currentTrack?.track ? isTrackLiked(currentTrack.track, currentTrack.artist || '') : false;
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
   const displayProgress = isDragging ? dragProgress : progressPercent;
 
-  if (!isPlayerVisible || !currentTrack) {
-    return (
-      <div id="yt-player-wrapper" style={{ position: 'absolute', width: '1px', height: '1px', opacity: 0, pointerEvents: 'none', zIndex: -1 }}>
-        <div id="youtubePlayer"></div>
-      </div>
-    );
-  }
-
-  const downloadUrl = `/api/saavn/download?title=${encodeURIComponent(currentTrack.track)}&artist=${encodeURIComponent(currentTrack.artist)}`;
+  const downloadUrl = currentTrack?.track
+    ? `/api/saavn/download?title=${encodeURIComponent(currentTrack.track)}&artist=${encodeURIComponent(currentTrack.artist || '')}`
+    : '#';
 
   return (
     <div
       id="playerContainer"
       style={{
-        display: 'block',
-        boxShadow: `0 -10px 45px ${ambientGlow || 'rgba(0, 242, 254, 0.35)'}`,
+        display: isPlayerVisible ? 'block' : 'none',
+        boxShadow: isPlayerVisible
+          ? (ambientGlow ? `0 -10px 45px ${ambientGlow}` : '0 -8px 40px rgba(0, 0, 0, 0.8), 0 -1px 0 rgba(0, 242, 254, 0.06)')
+          : 'none',
       }}
     >
       <div className="player-content">
         {/* Full Width Progress Bar Row */}
         <div className="player-progress-wrap" id="mobileProgressRow">
-          <span id="currentTime">{formatTime(isDragging ? (dragProgress / 100) * (duration || 0) : currentTime)}</span>
+          <span id="currentTime">
+            {formatTime(isDragging ? (dragProgress / 100) * (duration || 0) : currentTime)}
+          </span>
           <input
             type="range"
             id="progressBar"
@@ -74,6 +72,9 @@ export default function MusicPlayer() {
             min="0"
             max="100"
             step="0.1"
+            style={{
+              background: `linear-gradient(to right, var(--neon-cyan) 0%, var(--neon-cyan) ${displayProgress}%, rgba(255, 255, 255, 0.2) ${displayProgress}%, rgba(255, 255, 255, 0.2) 100%)`,
+            }}
             onMouseDown={() => setIsDragging(true)}
             onTouchStart={() => setIsDragging(true)}
             onChange={(e) => {
@@ -87,59 +88,66 @@ export default function MusicPlayer() {
           <span id="totalTime">{formatTime(duration)}</span>
         </div>
 
-        {/* Controls Row */}
+        {/* Single Line Controls Row */}
         <div className="player-main-row">
           <div className="now-playing">
             <div className="now-playing-icon" id="nowPlayingIconWrap">
-              {currentTrack.image ? (
-                <img
-                  id="playerThumbnail"
-                  src={currentTrack.image}
-                  alt={currentTrack.track}
-                  style={{ width: '100%', height: '100%', borderRadius: '8px', objectFit: 'cover' }}
-                  onError={(e) => {
-                    e.target.style.display = 'none';
-                  }}
-                />
-              ) : (
-                <i className="fas fa-music" id="playerDefaultIcon"></i>
-              )}
+              <img
+                id="playerThumbnail"
+                src={currentTrack?.image || ''}
+                alt={currentTrack?.track || 'Now Playing'}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  borderRadius: '8px',
+                  objectFit: 'cover',
+                  display: currentTrack?.image ? 'block' : 'none',
+                }}
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  const defIcon = document.getElementById('playerDefaultIcon');
+                  if (defIcon) defIcon.style.display = 'block';
+                }}
+              />
+              <i
+                className="fas fa-music"
+                id="playerDefaultIcon"
+                style={{ display: currentTrack?.image ? 'none' : 'block' }}
+              ></i>
             </div>
             <div className="now-playing-info">
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <div id="playerTitle" className="now-playing-title" title={currentTrack.track}>
-                  {currentTrack.track}
+                <div id="playerTitle" className="now-playing-title" title={currentTrack?.track || 'Song Title'}>
+                  {currentTrack?.track || 'Song Title'}
                 </div>
-                {isPlaying && (
-                  <div className="equalizer-waves" id="equalizerWave">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                  </div>
-                )}
+                <div className={`equalizer-waves ${isPlaying ? '' : 'paused'}`} id="equalizerWave">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
               </div>
-              <div id="playerArtist" className="now-playing-artist" title={currentTrack.artist}>
-                {currentTrack.artist}
+              <div id="playerArtist" className="now-playing-artist" title={currentTrack?.artist || 'Artist Name'}>
+                {currentTrack?.artist || 'Artist Name'}
               </div>
             </div>
             <div className="player-quick-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '4px', flexShrink: 0 }}>
               <i
                 className={liked ? 'fas fa-heart' : 'far fa-heart'}
                 id="playerLikeBtn"
-                onClick={() => toggleTrackLike(currentTrack.track, currentTrack.artist, currentTrack.image)}
+                onClick={() => currentTrack && toggleTrackLike(currentTrack.track, currentTrack.artist, currentTrack.image)}
                 style={{
                   cursor: 'pointer',
                   color: liked ? 'var(--neon-pink)' : 'var(--text-muted)',
                   fontSize: '16px',
                   transition: 'all 0.2s',
                 }}
-                title={liked ? 'Unlike' : 'Like Song'}
+                title={liked ? 'Unlike Song' : 'Like Song'}
               ></i>
               <i
                 className="fas fa-plus"
                 id="playerAddToPlBtn"
-                onClick={() => openModal('addToPl', currentTrack)}
+                onClick={() => currentTrack && openModal('addToPl', currentTrack)}
                 style={{ cursor: 'pointer', color: 'var(--text-muted)', fontSize: '14px', transition: 'all 0.2s' }}
                 title="Add to Playlist"
               ></i>
@@ -161,7 +169,7 @@ export default function MusicPlayer() {
                 title="Sleep Timer"
               >
                 <i className="fas fa-moon"></i>
-                {sleepTimer && <span className="sleep-active-dot" id="sleepActiveDot" style={{ display: 'block' }}></span>}
+                <span className="sleep-active-dot" id="sleepActiveDot" style={{ display: sleepTimer ? 'block' : 'none' }}></span>
               </button>
             </div>
 
@@ -199,11 +207,9 @@ export default function MusicPlayer() {
                 style={{ color: repeatMode !== 'off' ? 'var(--neon-cyan)' : 'inherit' }}
               >
                 <i className="fas fa-redo ctrl-sub-btn" id="repeatBtn"></i>
-                {repeatMode === 'one' && (
-                  <span className="repeat-badge" id="repeatBadge" style={{ display: 'block' }}>
-                    1
-                  </span>
-                )}
+                <span className="repeat-badge" id="repeatBadge" style={{ display: repeatMode === 'one' ? 'flex' : 'none' }}>
+                  1
+                </span>
               </div>
             </div>
 
@@ -211,7 +217,7 @@ export default function MusicPlayer() {
               <button
                 className="player-action-btn lyrics-glow-btn"
                 id="lyricsBtn"
-                onClick={() => openModal('lyrics', currentTrack)}
+                onClick={() => currentTrack && openModal('lyrics', currentTrack)}
                 title="View Lyrics"
               >
                 <i className="fas fa-quote-right"></i>
@@ -219,11 +225,12 @@ export default function MusicPlayer() {
               <a
                 id="downloadBtn"
                 href={downloadUrl}
-                download={`${currentTrack.track}.mp3`}
+                download={currentTrack?.track ? `${currentTrack.track}.mp3` : ''}
                 target="_blank"
                 rel="noreferrer"
                 className="player-action-btn download-glow-btn"
                 title="Download Song"
+                style={{ display: currentTrack ? 'inline-flex' : 'none' }}
               >
                 <i className="fas fa-arrow-down"></i>
               </a>
@@ -242,6 +249,9 @@ export default function MusicPlayer() {
                   max="100"
                   value={isMuted ? 0 : volume}
                   onChange={(e) => changeVolume(parseFloat(e.target.value))}
+                  style={{
+                    background: `linear-gradient(to right, var(--neon-cyan) 0%, var(--neon-cyan) ${isMuted ? 0 : volume}%, rgba(255, 255, 255, 0.2) ${isMuted ? 0 : volume}%, rgba(255, 255, 255, 0.2) 100%)`,
+                  }}
                 />
               </div>
               <div

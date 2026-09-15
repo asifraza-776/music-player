@@ -95,7 +95,13 @@
     "usr_mu2kimwc_la9yn4g": {
       "likedTracks": [],
       "likedAlbums": [],
-      "likedPlaylists": [],
+      "likedPlaylists": [
+        {
+          "id": "58057412",
+          "title": "Let's Play - Arijit Singh - Hindi",
+          "image": "https://c.saavncdn.com/editorial/Let_sPlayArijitSinghHindi_20240812070403.jpg"
+        }
+      ],
       "customPlaylists": []
     },
     "usr_mu2l4qfc_951dbti": {
