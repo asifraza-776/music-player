@@ -1098,18 +1098,14 @@ body::after {
 }
 
 .player-actions-cluster {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    flex: 1;
-    position: static;
-    gap: 12px;
+    display: contents;
 }
 
 .player-left-tools {
     display: flex;
     align-items: center;
     gap: 8px;
+    margin-left: auto;
     z-index: 10;
 }
 
@@ -1226,7 +1222,7 @@ body::after {
     align-items: center;
     gap: 10px;
     flex: 0 0 auto;
-    margin-left: 0;
+    margin-left: 12px;
     justify-content: flex-end;
     z-index: 10;
 }
