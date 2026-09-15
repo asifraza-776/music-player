@@ -1,4 +1,4 @@
-const CACHE_NAME = 'melodysphere-v28-explore-popular-recent';
+const CACHE_NAME = 'melodysphere-v29-bugfixes';
 const OFFLINE_PAGE = '/offline.html';
 
 const APP_SHELL = [

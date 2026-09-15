@@ -67,8 +67,8 @@ export default function SearchView() {
   };
 
   // Search Track
-  const handleSearchTrack = async () => {
-    const track = trackQuery.trim();
+  const handleSearchTrack = async (query = null) => {
+    const track = (query !== null ? query : trackQuery).trim();
     const artist = trackArtistQuery.trim();
     if (!track) {
       alert('Please enter a track name');
@@ -96,8 +96,8 @@ export default function SearchView() {
   };
 
   // Search Album
-  const handleSearchAlbum = async () => {
-    const q = albumQuery.trim();
+  const handleSearchAlbum = async (query = null) => {
+    const q = (query !== null ? query : albumQuery).trim();
     if (!q) {
       alert('Please enter an album name');
       return;
@@ -122,8 +122,8 @@ export default function SearchView() {
   };
 
   // Search Playlist
-  const handleSearchPlaylist = async () => {
-    const q = playlistQuery.trim();
+  const handleSearchPlaylist = async (query = null) => {
+    const q = (query !== null ? query : playlistQuery).trim();
     if (!q) {
       alert('Please enter a playlist keyword');
       return;
@@ -236,13 +236,13 @@ export default function SearchView() {
             handleSearchArtist(transcript);
           } else if (tabType === 'track') {
             setTrackQuery(transcript);
-            handleSearchTrack();
+            handleSearchTrack(transcript);
           } else if (tabType === 'album') {
             setAlbumQuery(transcript);
-            handleSearchAlbum();
+            handleSearchAlbum(transcript);
           } else if (tabType === 'playlist') {
             setPlaylistQuery(transcript);
-            handleSearchPlaylist();
+            handleSearchPlaylist(transcript);
           }
         };
 
@@ -643,6 +643,7 @@ export default function SearchView() {
                     track: t.name,
                     artist: t.artist || 'Unknown Artist',
                     image: t.image || '',
+                    id: t.id || '',
                   }));
 
                   return (

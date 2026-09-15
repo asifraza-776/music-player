@@ -89,6 +89,7 @@ export default function CollectionModal() {
     track: s.title || s.song,
     artist: s.artist || s.singers || '',
     image: s.image || collection.image,
+    id: s.id || '',
   }));
 
   const handlePlayAll = (shuffle = false) => {

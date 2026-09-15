@@ -196,13 +196,14 @@ export function PlayerProvider({ children }) {
     setIsLoading(true);
     setIsPlayerVisible(true);
 
-    const newMeta = { track, artist, image };
+    const targetIdx = index >= 0 ? index : 0;
+    const queueId = (queue && queue[targetIdx]?.id) ? queue[targetIdx].id : null;
+    const newMeta = { track, artist, image, id: queueId };
     setCurrentTrack(newMeta);
     computeAmbientGlow(image);
 
     if (queue && queue.length > 0) {
       setPlaylistQueue(queue);
-      const targetIdx = index >= 0 ? index : 0;
       setCurrentTrackIndex(targetIdx);
       if (isShuffleRef.current) {
         unplayedShuffleIndicesRef.current = queue
@@ -397,6 +398,16 @@ export function PlayerProvider({ children }) {
       audioRef.current.currentTime = 0;
       lastPrevTapRef.current = now;
       return;
+    }
+    if (playbackSourceRef.current === 'youtube' && ytPlayerRef.current && ytPlayerRef.current.getCurrentTime) {
+      try {
+        const ytTime = ytPlayerRef.current.getCurrentTime();
+        if (ytTime > 3 && now - lastPrevTapRef.current > 2000) {
+          ytPlayerRef.current.seekTo(0, true);
+          lastPrevTapRef.current = now;
+          return;
+        }
+      } catch (e) {}
     }
     lastPrevTapRef.current = now;
 

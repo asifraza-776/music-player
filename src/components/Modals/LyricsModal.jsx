@@ -50,6 +50,25 @@ export default function LyricsModal() {
       .finally(() => setLoading(false));
   }, [activeModal, modalData, currentTrack]);
 
+  const formatLyrics = (raw) => {
+    if (!raw) return 'Lyrics not available for this song.';
+    const decoded = raw
+      .replace(/&quot;/g, '"')
+      .replace(/&#039;/g, "'")
+      .replace(/&apos;/g, "'")
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>');
+
+    const normalized = decoded
+      .replace(/\r\n/g, '\n')
+      .replace(/<br\s*\/?>\n?/gi, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+
+    return normalized.replace(/\n/g, '<br>');
+  };
+
   if (activeModal !== 'lyrics') return null;
 
   return (
@@ -93,7 +112,7 @@ export default function LyricsModal() {
                 padding: '10px 0',
               }}
               dangerouslySetInnerHTML={{
-                __html: lyrics ? lyrics.replace(/\n/g, '<br>') : 'Lyrics not available for this song.',
+                __html: formatLyrics(lyrics),
               }}
             />
           )}

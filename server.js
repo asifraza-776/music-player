@@ -566,11 +566,28 @@ app.get("/api/saavn/search", async (req, res) => {
 // Multi-Source Lyrics Route (JioSaavn + LRCLIB + Lyrics.ovh)
 app.get(["/api/saavn/lyrics", "/api/lyrics"], async (req, res) => {
   try {
-    const songId = req.query.id;
+    let songId = req.query.id;
     const track = req.query.track || req.query.title || "";
     const artist = req.query.artist || "";
 
-    // Source 1: JioSaavn Official Lyrics (if songId provided)
+    // Auto-resolve songId from JioSaavn search if not provided
+    if (!songId && track) {
+      try {
+        const q = `${track} ${artist}`.trim();
+        const searchUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&cc=in&includeMetaTags=1&p=1&n=2&q=${encodeURIComponent(q)}`;
+        const sRes = await fetch(searchUrl, {
+          headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" }
+        });
+        const sData = await sRes.json();
+        if (sData?.results?.[0]?.id) {
+          songId = sData.results[0].id;
+        }
+      } catch (searchErr) {
+        console.warn("Auto-resolve songId error for lyrics:", searchErr.message);
+      }
+    }
+
+    // Source 1: JioSaavn Official Lyrics (if songId provided or resolved)
     if (songId) {
       try {
         const lyricsUrl = `https://www.jiosaavn.com/api.php?__call=lyrics.getLyrics&_format=json&lyrics_id=${encodeURIComponent(songId)}&ctx=web6dot0&api_version=4`;
@@ -788,17 +805,24 @@ app.post("/api/user/library/like", (req, res) => {
 
   if (type === "track") {
     if (!userLib.likedTracks) userLib.likedTracks = [];
-    const idx = userLib.likedTracks.findIndex(t => t.track.toLowerCase() === item.track.toLowerCase() && t.artist.toLowerCase() === item.artist.toLowerCase());
+    const iTrack = (item.track || item.title || '').toString().toLowerCase().trim();
+    const iArtist = (item.artist || item.singers || '').toString().toLowerCase().trim();
+    const idx = userLib.likedTracks.findIndex(t => {
+      const tTrack = (t?.track || t?.title || '').toString().toLowerCase().trim();
+      const tArtist = (t?.artist || t?.singers || '').toString().toLowerCase().trim();
+      return tTrack === iTrack && (!iArtist || !tArtist || tArtist === iArtist);
+    });
     if (idx > -1) {
       userLib.likedTracks.splice(idx, 1);
       liked = false;
     } else {
-      userLib.likedTracks.unshift({ track: item.track, artist: item.artist, image: item.image || "", id: item.id || "" });
+      userLib.likedTracks.unshift({ track: item.track || item.title || "Track", artist: item.artist || item.singers || "Unknown Artist", image: item.image || "", id: item.id || "" });
       liked = true;
     }
   } else if (type === "album") {
     if (!userLib.likedAlbums) userLib.likedAlbums = [];
-    const idx = userLib.likedAlbums.findIndex(a => (a.id && item.id && a.id === item.id) || (a.title && item.title && a.title.toLowerCase() === item.title.toLowerCase()));
+    const iTitle = (item.title || item.name || '').toString().toLowerCase().trim();
+    const idx = userLib.likedAlbums.findIndex(a => (a?.id && item.id && a.id === item.id) || (a?.title && iTitle && a.title.toString().toLowerCase().trim() === iTitle));
     if (idx > -1) {
       userLib.likedAlbums.splice(idx, 1);
       liked = false;
@@ -808,7 +832,8 @@ app.post("/api/user/library/like", (req, res) => {
     }
   } else if (type === "playlist") {
     if (!userLib.likedPlaylists) userLib.likedPlaylists = [];
-    const idx = userLib.likedPlaylists.findIndex(p => (p.id && item.id && p.id === item.id) || (p.title && item.title && p.title.toLowerCase() === item.title.toLowerCase()));
+    const iTitle = (item.title || item.name || '').toString().toLowerCase().trim();
+    const idx = userLib.likedPlaylists.findIndex(p => (p?.id && item.id && p.id === item.id) || (p?.title && iTitle && p.title.toString().toLowerCase().trim() === iTitle));
     if (idx > -1) {
       userLib.likedPlaylists.splice(idx, 1);
       liked = false;
@@ -863,7 +888,13 @@ app.post("/api/playlists/:id/tracks", (req, res) => {
   if (!playlist) return res.status(404).json({ success: false, error: "Playlist not found" });
 
   if (!playlist.tracks) playlist.tracks = [];
-  const exists = playlist.tracks.some(t => t.track.toLowerCase() === track.toLowerCase() && t.artist.toLowerCase() === artist.toLowerCase());
+  const iTrack = (track || '').toString().toLowerCase().trim();
+  const iArtist = (artist || '').toString().toLowerCase().trim();
+  const exists = playlist.tracks.some(t => {
+    const tTrack = (t?.track || t?.title || '').toString().toLowerCase().trim();
+    const tArtist = (t?.artist || t?.singers || '').toString().toLowerCase().trim();
+    return tTrack === iTrack && (!iArtist || !tArtist || tArtist === iArtist);
+  });
   if (exists) {
     return res.status(400).json({ success: false, error: "Track already in this playlist" });
   }

@@ -105,12 +105,14 @@ export default function ExploreView() {
     track: s.title,
     artist: s.artist,
     image: s.image || '',
+    id: s.id || '',
   }));
 
   const recentQueue = filteredRecent.map((s) => ({
     track: s.title,
     artist: s.artist,
     image: s.image || '',
+    id: s.id || '',
   }));
 
   const handlePlaySong = (song, queue, idx) => {
