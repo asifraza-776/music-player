@@ -1105,12 +1105,19 @@ app.post("/api/recognize", async (req, res) => {
   }
 });
 
-// Serve static files AFTER API routes
-app.use(express.static("public"));
+// Serve static files AFTER API routes (prefer Vite dist build, fallback to public)
+const staticDir = fs.existsSync(path.join(__dirname, "dist"))
+  ? path.join(__dirname, "dist")
+  : path.join(__dirname, "public");
 
-// Serve the main page
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+app.use(express.static(staticDir));
+
+// Catch-all: serve index.html for all non-API GET requests
+app.use((req, res, next) => {
+  if (req.method === "GET" && !req.path.startsWith("/api")) {
+    return res.sendFile(path.join(staticDir, "index.html"));
+  }
+  next();
 });
 
 if (!process.env.VERCEL) {

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MelodySphere - Stream Free Music & Playlists</title>
+    
+    <!-- Favicon & App Icon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+    <link rel="apple-touch-icon" href="/icon-192.png">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Discover millions of songs, albums, and artists. Explore top charts and experience seamless ad-free music playback with MelodySphere.">
+    
+    <!-- Mobile & PWA Optimization -->
+    <meta name="theme-color" content="#0f0c29">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="MelodySphere">
+    <meta name="mobile-web-app-capable" content="yes">
+    
+    <!-- Fonts and Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- YouTube IFrame API for audio fallback -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+
+    <!-- Service Worker Registration with Instant Auto-Update -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(function(reg) {
+                        console.log('[PWA] SW registered:', reg.scope);
+                        reg.update();
+                    })
+                    .catch(function(err) { console.warn('[PWA] SW failed:', err); });
+            });
+        }
+    </script>
+  <script type="module" crossorigin src="/assets/index-Bd0NnNm8.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-CYeVi8Ib.css">
+</head>
+
+<body>
+    <div id="root"></div>
+</body>
+</html>

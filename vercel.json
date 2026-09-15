@@ -1,12 +1,13 @@
 {
   "version": 2,
+  "buildCommand": "npm run build",
   "builds": [
     {
       "src": "server.js",
       "use": "@vercel/node"
     },
     {
-      "src": "public/**/*",
+      "src": "dist/**/*",
       "use": "@vercel/static"
     }
   ],
@@ -16,8 +17,11 @@
       "dest": "/server.js"
     },
     {
+      "handle": "filesystem"
+    },
+    {
       "src": "/(.*)",
-      "dest": "/public/$1"
+      "dest": "/dist/index.html"
     }
   ]
 }
