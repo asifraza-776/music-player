@@ -35,7 +35,7 @@ export default function MusicPlayer() {
   } = usePlayer();
 
   const { isTrackLiked, toggleTrackLike } = useLibrary();
-  const { openModal } = useUI();
+  const { openModal, showToast } = useUI();
 
   const [isDragging, setIsDragging] = useState(false);
   const [dragProgress, setDragProgress] = useState(0);
@@ -45,8 +45,25 @@ export default function MusicPlayer() {
   const displayProgress = isDragging ? dragProgress : progressPercent;
 
   const downloadUrl = currentTrack?.track
-    ? `/api/saavn/download?title=${encodeURIComponent(currentTrack.track)}&artist=${encodeURIComponent(currentTrack.artist || '')}`
+    ? `/api/saavn/download?title=${encodeURIComponent(currentTrack.track)}&artist=${encodeURIComponent(currentTrack.artist || '')}${currentTrack?.streamUrl ? `&url=${encodeURIComponent(currentTrack.streamUrl)}` : ''}`
     : '#';
+
+  const handleShuffleToggle = () => {
+    toggleShuffle();
+    if (showToast) {
+      if (!isShuffle) showToast('Shuffle ON', '', 'info');
+      else showToast('Shuffle OFF', '', 'info');
+    }
+  };
+
+  const handleRepeatToggle = () => {
+    toggleRepeat();
+    if (showToast) {
+      if (repeatMode === 'off') showToast('Repeat: All tracks', '', 'info');
+      else if (repeatMode === 'all') showToast('Repeat: Current song', '', 'info');
+      else showToast('Repeat OFF', '', 'info');
+    }
+  };
 
   return (
     <div
@@ -177,9 +194,9 @@ export default function MusicPlayer() {
               <i
                 className={`fas fa-random ctrl-sub-btn ${isShuffle ? 'active' : ''}`}
                 id="shuffleBtn"
-                onClick={toggleShuffle}
+                onClick={handleShuffleToggle}
                 style={{ color: isShuffle ? 'var(--neon-cyan)' : 'inherit' }}
-                title="Shuffle (S)"
+                title={isShuffle ? 'Shuffle On (S)' : 'Shuffle Off (S)'}
               ></i>
               <i
                 className="fas fa-step-backward ctrl-btn"
@@ -196,17 +213,17 @@ export default function MusicPlayer() {
               <i
                 className="fas fa-step-forward ctrl-btn"
                 id="nextBtn"
-                onClick={playNext}
+                onClick={() => playNext(false)}
                 title="Next (Shift+Right)"
               ></i>
               <div
                 className="repeat-wrapper"
                 id="repeatWrap"
-                onClick={toggleRepeat}
-                title="Repeat (R)"
+                onClick={handleRepeatToggle}
+                title={repeatMode === 'off' ? 'Repeat Off (R)' : repeatMode === 'all' ? 'Repeat: All (R)' : 'Repeat: One (R)'}
                 style={{ color: repeatMode !== 'off' ? 'var(--neon-cyan)' : 'inherit' }}
               >
-                <i className="fas fa-redo ctrl-sub-btn" id="repeatBtn"></i>
+                <i className={`fas fa-redo ctrl-sub-btn ${repeatMode !== 'off' ? 'active' : ''}`} id="repeatBtn"></i>
                 <span className="repeat-badge" id="repeatBadge" style={{ display: repeatMode === 'one' ? 'flex' : 'none' }}>
                   1
                 </span>
@@ -226,11 +243,14 @@ export default function MusicPlayer() {
                 id="downloadBtn"
                 href={downloadUrl}
                 download={currentTrack?.track ? `${currentTrack.track}.mp3` : ''}
-                target="_blank"
-                rel="noreferrer"
                 className="player-action-btn download-glow-btn"
-                title="Download Song"
+                title="Download Song (.mp3)"
                 style={{ display: currentTrack ? 'inline-flex' : 'none' }}
+                onClick={() => {
+                  if (currentTrack?.track && showToast) {
+                    showToast('Downloading song...', currentTrack.track, 'info');
+                  }
+                }}
               >
                 <i className="fas fa-arrow-down"></i>
               </a>

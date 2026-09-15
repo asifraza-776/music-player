@@ -1,4 +1,4 @@
-const CACHE_NAME = 'melodysphere-v26-desi-charts';
+const CACHE_NAME = 'melodysphere-v27-dl-lyrics-repeat-fix';
 const OFFLINE_PAGE = '/offline.html';
 
 const APP_SHELL = [

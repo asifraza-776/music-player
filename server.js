@@ -539,10 +539,10 @@ app.get("/api/saavn/search", async (req, res) => {
 });
 
 // Multi-Source Lyrics Route (JioSaavn + LRCLIB + Lyrics.ovh)
-app.get("/api/saavn/lyrics", async (req, res) => {
+app.get(["/api/saavn/lyrics", "/api/lyrics"], async (req, res) => {
   try {
     const songId = req.query.id;
-    const track = req.query.track || "";
+    const track = req.query.track || req.query.title || "";
     const artist = req.query.artist || "";
 
     // Source 1: JioSaavn Official Lyrics (if songId provided)
@@ -642,6 +642,83 @@ app.get("/api/saavn/stream", async (req, res) => {
   } catch (err) {
     console.error("Stream Proxy Error:", err.message);
     res.status(500).send("Error streaming audio");
+  }
+});
+
+// Direct MP3 Audio Download Proxy
+app.get(["/api/saavn/download", "/api/download"], async (req, res) => {
+  try {
+    const rawUrl = req.query.url;
+    const title = (req.query.title || req.query.track || "Song").trim();
+    const artist = (req.query.artist || "").trim();
+
+    console.log(`📥 Download request for: "${title}" by "${artist}"`);
+
+    let cdnUrl = null;
+
+    // 1. If direct url or /api/saavn/stream?url=... was passed
+    if (rawUrl) {
+      if (rawUrl.includes("url=")) {
+        const parts = rawUrl.split("url=");
+        cdnUrl = decodeURIComponent(parts[1]);
+      } else if (rawUrl.startsWith("http")) {
+        cdnUrl = rawUrl;
+      }
+    }
+
+    // 2. If no CDN url yet, search JioSaavn to obtain direct 320kbps token url
+    if (!cdnUrl) {
+      const q = `${title} ${artist}`.trim();
+      const searchUrl = `https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&cc=in&includeMetaTags=1&p=1&n=5&q=${encodeURIComponent(q)}`;
+      const searchRes = await fetch(searchUrl, {
+        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" }
+      });
+      const searchData = await searchRes.json();
+      if (searchData && searchData.results && searchData.results.length > 0) {
+        const playable = searchData.results.find(s => !!(s.encrypted_media_url || (s.more_info && s.more_info.encrypted_media_url))) || searchData.results[0];
+        const encUrl = playable.encrypted_media_url || (playable.more_info && playable.more_info.encrypted_media_url);
+        if (encUrl) {
+          const tokenUrl = `https://www.jiosaavn.com/api.php?__call=song.generateAuthToken&url=${encodeURIComponent(encUrl)}&bitrate=320&api_version=4&_format=json&ctx=web6dot0&_marker=0`;
+          const tokenRes = await fetch(tokenUrl, {
+            headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" }
+          });
+          const tokenData = await tokenRes.json();
+          if (tokenData && tokenData.auth_url) {
+            cdnUrl = tokenData.auth_url;
+          }
+        }
+      }
+    }
+
+    if (!cdnUrl) {
+      return res.status(404).send("Audio stream not found for download");
+    }
+
+    const headers = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Referer": "https://www.jiosaavn.com/"
+    };
+
+    const audioRes = await fetch(cdnUrl, { headers });
+    if (!audioRes.ok) {
+      return res.status(audioRes.status).send("Failed to stream audio file");
+    }
+
+    const cleanTitle = title.replace(/[/\\?%*:|"<>]/g, "").replace(/\s+/g, " ");
+    const cleanArtist = artist.replace(/[/\\?%*:|"<>]/g, "").replace(/\s+/g, " ");
+    const filename = cleanArtist ? `${cleanTitle} - ${cleanArtist}.mp3` : `${cleanTitle}.mp3`;
+
+    res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(filename)}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
+    res.setHeader("Content-Type", "audio/mpeg");
+    if (audioRes.headers.get("content-length")) {
+      res.setHeader("Content-Length", audioRes.headers.get("content-length"));
+    }
+
+    const { Readable } = require("stream");
+    Readable.fromWeb(audioRes.body).pipe(res);
+  } catch (err) {
+    console.error("Download route error:", err.message);
+    res.status(500).send("Error downloading track");
   }
 });
 

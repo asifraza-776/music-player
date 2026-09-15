@@ -25,6 +25,39 @@ export function PlayerProvider({ children }) {
   const isChangingSongRef = useRef(false);
   const lastPrevTapRef = useRef(0);
 
+  // Sync refs to prevent stale closures in event listeners
+  const playlistQueueRef = useRef([]);
+  const currentTrackIndexRef = useRef(-1);
+  const repeatModeRef = useRef('off');
+  const isShuffleRef = useRef(false);
+  const playbackSourceRef = useRef(null);
+  const sleepTimerRef = useRef(null);
+  const currentTrackRef = useRef(null);
+  const unplayedShuffleIndicesRef = useRef([]);
+  const handleTrackEndedRef = useRef();
+
+  useEffect(() => {
+    playlistQueueRef.current = playlistQueue;
+  }, [playlistQueue]);
+  useEffect(() => {
+    currentTrackIndexRef.current = currentTrackIndex;
+  }, [currentTrackIndex]);
+  useEffect(() => {
+    repeatModeRef.current = repeatMode;
+  }, [repeatMode]);
+  useEffect(() => {
+    isShuffleRef.current = isShuffle;
+  }, [isShuffle]);
+  useEffect(() => {
+    playbackSourceRef.current = playbackSource;
+  }, [playbackSource]);
+  useEffect(() => {
+    sleepTimerRef.current = sleepTimer;
+  }, [sleepTimer]);
+  useEffect(() => {
+    currentTrackRef.current = currentTrack;
+  }, [currentTrack]);
+
   // Initialize HTML5 Audio & YouTube IFrame
   useEffect(() => {
     const audio = new Audio();
@@ -44,7 +77,7 @@ export function PlayerProvider({ children }) {
 
     const handleEnded = () => {
       if (isChangingSongRef.current) return;
-      handleTrackEnded();
+      if (handleTrackEndedRef.current) handleTrackEndedRef.current();
     };
 
     const handleError = () => {
@@ -81,7 +114,7 @@ export function PlayerProvider({ children }) {
             } else if (event.data === window.YT.PlayerState.PAUSED) {
               setIsPlaying(false);
             } else if (event.data === window.YT.PlayerState.ENDED) {
-              handleTrackEnded();
+              if (handleTrackEndedRef.current) handleTrackEndedRef.current();
             }
           },
         },
@@ -167,7 +200,13 @@ export function PlayerProvider({ children }) {
 
     if (queue && queue.length > 0) {
       setPlaylistQueue(queue);
-      setCurrentTrackIndex(index >= 0 ? index : 0);
+      const targetIdx = index >= 0 ? index : 0;
+      setCurrentTrackIndex(targetIdx);
+      if (isShuffleRef.current) {
+        unplayedShuffleIndicesRef.current = queue
+          .map((_, i) => i)
+          .filter((i) => i !== targetIdx);
+      }
     }
 
     // Stop existing audio sources cleanly
@@ -189,22 +228,41 @@ export function PlayerProvider({ children }) {
 
       let streamUrl = null;
       let finalImg = image;
+      let songId = null;
+      let hasLyrics = false;
 
       if (searchData.success && searchData.streamUrl) {
         streamUrl = searchData.streamUrl;
+        songId = searchData.id || null;
+        hasLyrics = !!searchData.has_lyrics;
         if (!finalImg && searchData.image) finalImg = searchData.image;
-        if (searchData.title && searchData.artist) {
-          setCurrentTrack({ track: searchData.title, artist: searchData.artist, image: finalImg });
-        }
+        setCurrentTrack({
+          track: searchData.title || track,
+          artist: searchData.artist || artist,
+          image: finalImg,
+          id: songId,
+          streamUrl: searchData.streamUrl,
+          hasLyrics,
+        });
       } else if (searchData.results && searchData.results.length > 0) {
         const topResult = searchData.results[0];
         if (!finalImg && topResult.image) finalImg = topResult.image;
+        songId = topResult.id || null;
+        hasLyrics = !!topResult.has_lyrics;
 
         const streamRes = await fetch(`/api/saavn/stream?id=${topResult.id}`);
         const streamData = await streamRes.json();
         if (streamData.streamUrl) {
           streamUrl = streamData.streamUrl;
         }
+        setCurrentTrack({
+          track: topResult.title || track,
+          artist: topResult.artist || artist,
+          image: finalImg,
+          id: songId,
+          streamUrl: streamUrl,
+          hasLyrics,
+        });
       }
 
       if (finalImg && finalImg !== image) {
@@ -232,6 +290,13 @@ export function PlayerProvider({ children }) {
         setPlaybackSource('youtube');
         ytPlayerRef.current.loadVideoById(ytData.videoId);
         setIsPlaying(true);
+        setCurrentTrack((prev) => ({
+          ...prev,
+          track,
+          artist,
+          image: finalImg,
+          youtubeId: ytData.videoId,
+        }));
       } else {
         console.warn('Could not play track from either JioSaavn or YouTube');
       }
@@ -262,43 +327,66 @@ export function PlayerProvider({ children }) {
           setIsPlaying(true);
         }
       } catch (e) {}
-    } else if (!isPlaying && playlistQueue.length > 0) {
+    } else if (!isPlaying && playlistQueueRef.current.length > 0) {
       playTrackByIndex(0);
     }
-  }, [playbackSource, isPlaying, playlistQueue]);
+  }, [playbackSource, isPlaying]);
 
   const playTrackByIndex = useCallback(
     (index) => {
-      if (index >= 0 && index < playlistQueue.length) {
-        const item = playlistQueue[index];
-        playMusic(item.track, item.artist, item.image || '', playlistQueue, index);
+      const queue = playlistQueueRef.current;
+      if (index >= 0 && index < queue.length) {
+        const item = queue[index];
+        playMusic(item.track, item.artist, item.image || '', queue, index);
       }
     },
-    [playlistQueue, playMusic]
+    [playMusic]
   );
 
-  const playNext = useCallback(() => {
-    if (playlistQueue.length === 0) {
-      if (audioRef.current) audioRef.current.currentTime = 0;
-      return;
-    }
+  const playNext = useCallback(
+    (autoEnded = false) => {
+      const queue = playlistQueueRef.current;
+      const currentIdx = currentTrackIndexRef.current;
+      const shuffle = isShuffleRef.current;
+      const repeat = repeatModeRef.current;
 
-    if (isShuffle) {
-      const randomIndex = Math.floor(Math.random() * playlistQueue.length);
-      playTrackByIndex(randomIndex);
-      return;
-    }
-
-    let nextIndex = currentTrackIndex + 1;
-    if (nextIndex >= playlistQueue.length) {
-      if (repeatMode === 'all') {
-        nextIndex = 0;
-      } else {
-        return; // reached end of queue
+      if (!queue || queue.length === 0) {
+        if (audioRef.current) audioRef.current.currentTime = 0;
+        return;
       }
-    }
-    playTrackByIndex(nextIndex);
-  }, [playlistQueue, isShuffle, currentTrackIndex, repeatMode, playTrackByIndex]);
+
+      if (shuffle && queue.length > 1) {
+        if (!unplayedShuffleIndicesRef.current || unplayedShuffleIndicesRef.current.length === 0) {
+          unplayedShuffleIndicesRef.current = queue
+            .map((_, i) => i)
+            .filter((i) => i !== currentIdx);
+        }
+        if (unplayedShuffleIndicesRef.current.length === 0) {
+          unplayedShuffleIndicesRef.current = queue.map((_, i) => i);
+        }
+        const randomPick = Math.floor(Math.random() * unplayedShuffleIndicesRef.current.length);
+        const nextIndex = unplayedShuffleIndicesRef.current.splice(randomPick, 1)[0];
+        playTrackByIndex(nextIndex);
+        return;
+      }
+
+      let nextIndex = currentIdx + 1;
+      if (nextIndex >= queue.length) {
+        if (autoEnded && repeat === 'off') {
+          // End of queue reached and repeat is off: stop playback
+          if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+          }
+          setIsPlaying(false);
+          return;
+        }
+        nextIndex = 0; // Wrap back to first track
+      }
+      playTrackByIndex(nextIndex);
+    },
+    [playTrackByIndex]
+  );
 
   const playPrevious = useCallback(() => {
     const now = Date.now();
@@ -310,17 +398,20 @@ export function PlayerProvider({ children }) {
     }
     lastPrevTapRef.current = now;
 
-    if (playlistQueue.length === 0) {
+    const queue = playlistQueueRef.current;
+    const currentIdx = currentTrackIndexRef.current;
+
+    if (!queue || queue.length === 0) {
       if (audioRef.current) audioRef.current.currentTime = 0;
       return;
     }
 
-    let prevIndex = currentTrackIndex - 1;
+    let prevIndex = currentIdx - 1;
     if (prevIndex < 0) {
-      prevIndex = playlistQueue.length - 1;
+      prevIndex = queue.length - 1;
     }
     playTrackByIndex(prevIndex);
-  }, [playlistQueue, currentTrackIndex, playTrackByIndex]);
+  }, [playTrackByIndex]);
 
   const closePlayer = useCallback(() => {
     isChangingSongRef.current = true;
@@ -348,24 +439,31 @@ export function PlayerProvider({ children }) {
   }, []);
 
   const handleTrackEnded = useCallback(() => {
-    if (sleepTimer?.mode === 'end-of-song') {
+    const timer = sleepTimerRef.current;
+    if (timer?.mode === 'end-of-song') {
       setSleepTimerState(null);
       closePlayer();
       return;
     }
 
-    if (repeatMode === 'one') {
-      if (playbackSource === 'jiosaavn' && audioRef.current) {
+    const repeat = repeatModeRef.current;
+    const source = playbackSourceRef.current;
+
+    if (repeat === 'one') {
+      if (source === 'jiosaavn' && audioRef.current) {
         audioRef.current.currentTime = 0;
         audioRef.current.play().catch(() => {});
-      } else if (playbackSource === 'youtube' && ytPlayerRef.current) {
+      } else if (source === 'youtube' && ytPlayerRef.current) {
         ytPlayerRef.current.seekTo(0);
         ytPlayerRef.current.playVideo();
       }
     } else {
-      playNext();
+      playNext(true);
     }
-  }, [repeatMode, playbackSource, playNext, sleepTimer, closePlayer]);
+  }, [closePlayer, playNext]);
+
+  // Keep ref up to date
+  handleTrackEndedRef.current = handleTrackEnded;
 
   const seek = useCallback(
     (percentage) => {
@@ -403,7 +501,19 @@ export function PlayerProvider({ children }) {
   }, [isMuted, changeVolume]);
 
   const toggleShuffle = useCallback(() => {
-    setIsShuffle((prev) => !prev);
+    setIsShuffle((prev) => {
+      const next = !prev;
+      const queue = playlistQueueRef.current;
+      const currentIdx = currentTrackIndexRef.current;
+      if (next && queue.length > 0) {
+        unplayedShuffleIndicesRef.current = queue
+          .map((_, i) => i)
+          .filter((i) => i !== currentIdx);
+      } else {
+        unplayedShuffleIndicesRef.current = [];
+      }
+      return next;
+    });
   }, []);
 
   const toggleRepeat = useCallback(() => {

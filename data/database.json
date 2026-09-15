@@ -93,7 +93,14 @@
       ]
     },
     "usr_mu2kimwc_la9yn4g": {
-      "likedTracks": [],
+      "likedTracks": [
+        {
+          "track": "Zaalima",
+          "artist": "Arijit Singh, Harshdeep Kaur",
+          "image": "https://c.saavncdn.com/120/Happy-Vibes-Hindi-2026-20260730190751-500x500.jpg",
+          "id": ""
+        }
+      ],
       "likedAlbums": [],
       "likedPlaylists": [
         {
@@ -102,7 +109,22 @@
           "image": "https://c.saavncdn.com/editorial/Let_sPlayArijitSinghHindi_20240812070403.jpg"
         }
       ],
-      "customPlaylists": []
+      "customPlaylists": [
+        {
+          "id": "pl_1789487587091_xdmx",
+          "name": "nrw",
+          "description": "srk",
+          "createdAt": "2026-09-15T15:53:07.092Z",
+          "image": "https://c.saavncdn.com/588/Dilwale-Dulhania-Le-Jayenge-Hindi-1995-20171114-500x500.jpg",
+          "tracks": [
+            {
+              "track": "Tujhe Dekha To",
+              "artist": "Lata Mangeshkar, Kumar Sanu",
+              "image": "https://c.saavncdn.com/588/Dilwale-Dulhania-Le-Jayenge-Hindi-1995-20171114-500x500.jpg"
+            }
+          ]
+        }
+      ]
     },
     "usr_mu2l4qfc_951dbti": {
       "likedTracks": [],
