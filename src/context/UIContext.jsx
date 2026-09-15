@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 const UIContext = createContext();
 
 export function UIProvider({ children }) {
-  const [currentView, setCurrentView] = useState('search');
+  const [currentView, setCurrentView] = useState('explore');
   const [activeModal, setActiveModal] = useState(null); // 'collection' | 'lyrics' | 'sleep' | 'createPl' | 'addToPl'
   const [modalData, setModalData] = useState(null);
   const [toasts, setToasts] = useState([]);

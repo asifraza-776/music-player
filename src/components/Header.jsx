@@ -9,7 +9,7 @@ export default function Header() {
       <div className="container navbar-container">
         <div className="header-content">
           <div className="logo-row">
-            <div className="logo" onClick={() => setCurrentView('search')} style={{ cursor: 'pointer' }}>
+            <div className="logo" onClick={() => setCurrentView('explore')} style={{ cursor: 'pointer' }}>
               <i className="fas fa-music"></i> Melody
               <span style={{ background: 'linear-gradient(135deg, #ffe6f0, #ffb6c1)', WebkitBackgroundClip: 'text' }}>
                 Sphere
@@ -23,18 +23,18 @@ export default function Header() {
           </div>
           <div className="nav-links">
             <button
-              className={`nav-btn ${currentView === 'search' ? 'active' : ''}`}
-              data-view="search"
-              onClick={() => setCurrentView('search')}
-            >
-              <i className="fas fa-search"></i> <span>Search</span>
-            </button>
-            <button
               className={`nav-btn ${currentView === 'explore' ? 'active' : ''}`}
               data-view="explore"
               onClick={() => setCurrentView('explore')}
             >
               <i className="fas fa-compass"></i> <span>Explore</span>
+            </button>
+            <button
+              className={`nav-btn ${currentView === 'search' ? 'active' : ''}`}
+              data-view="search"
+              onClick={() => setCurrentView('search')}
+            >
+              <i className="fas fa-search"></i> <span>Search</span>
             </button>
             <button
               className={`nav-btn ${currentView === 'charts' ? 'active' : ''}`}

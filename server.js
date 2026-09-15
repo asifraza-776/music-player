@@ -1076,9 +1076,121 @@ app.get("/api/saavn/playlist", async (req, res) => {
   }
 });
 
-// Featured / Curated Playlists & Trending Albums (Fresh, verified working IDs & Images)
+// Helper to clean HTML entities in titles and artists
+function decodeHtml(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
+}
+
+// Fallback collections for Explore Popular & Recent songs
+const fallbackPopularSongs = [
+  { id: "s1", title: "Tum Hi Ho", artist: "Arijit Singh, Mithoon", duration: "262", image: "https://c.saavncdn.com/430/Aashiqui-2-Hindi-2013-500x500.jpg" },
+  { id: "s2", title: "Chaleya", artist: "Arijit Singh, Shilpa Rao, Anirudh", duration: "200", image: "https://c.saavncdn.com/047/Jawan-Hindi-2023-20230921190854-500x500.jpg" },
+  { id: "s3", title: "Apna Bana Le", artist: "Arijit Singh, Sachin-Jigar", duration: "261", image: "https://c.saavncdn.com/000/Bhediya-Hindi-2022-20221124151008-500x500.jpg" },
+  { id: "s4", title: "Satranga", artist: "Arijit Singh, Shreyas Puranik", duration: "271", image: "https://c.saavncdn.com/092/ANIMAL-Hindi-2023-20260724191152-500x500.jpg" },
+  { id: "s5", title: "Kesariya", artist: "Arijit Singh, Pritam", duration: "268", image: "https://c.saavncdn.com/871/Brahmastra-Original-Motion-Picture-Soundtrack-Hindi-2022-20221006155213-500x500.jpg" },
+  { id: "s6", title: "O Maahi", artist: "Arijit Singh, Pritam", duration: "233", image: "https://c.saavncdn.com/139/Dunki-Hindi-2023-20231220211003-500x500.jpg" },
+  { id: "s7", title: "Pehle Bhi Main", artist: "Vishal Mishra, Raj Shekhar", duration: "250", image: "https://c.saavncdn.com/092/ANIMAL-Hindi-2023-20260724191152-500x500.jpg" },
+  { id: "s8", title: "Aaj Ki Raat", artist: "Madhubanti Bagchi, Sachin-Jigar", duration: "228", image: "https://c.saavncdn.com/373/Stree-2-Hindi-2024-20240828083834-500x500.jpg" },
+  { id: "s9", title: "Tauba Tauba", artist: "Karan Aujla", duration: "207", image: "https://c.saavncdn.com/464/Tauba-Tauba-From-Bad-Newz-Hindi-2024-20240702111004-500x500.jpg" },
+  { id: "s10", title: "Tu Hai Kahan", artist: "AUR", duration: "263", image: "https://c.saavncdn.com/264/Tu-Hai-Kahan-Hindi-2023-20231122110515-500x500.jpg" },
+  { id: "s11", title: "Raataan Lambiyan", artist: "Jubin Nautiyal, Asees Kaur", duration: "230", image: "https://c.saavncdn.com/238/Shershaah-Original-Motion-Picture-Soundtrack--Hindi-2021-20210815181610-500x500.jpg" },
+  { id: "s12", title: "Jhoome Jo Pathaan", artist: "Arijit Singh, Sukriti Kakar, Vishal & Shekhar", duration: "208", image: "https://c.saavncdn.com/807/Pathaan-Hindi-2022-20221222104158-500x500.jpg" }
+];
+
+const fallbackRecentSongs = [
+  { id: "r1", title: "Tera Mera Rishta", artist: "Mithoon, Pritam, Saaj Bhatt", duration: "275", image: "https://c.saavncdn.com/editorial/Hindi-IndiaSuperhitsTop50_20260911054516_500x500.jpg" },
+  { id: "r2", title: "Parvati", artist: "Sadhu Tiwari", duration: "240", image: "https://c.saavncdn.com/editorial/NowTrending_20260423085344_500x500.jpg" },
+  { id: "r3", title: "Vaaroon Forever", artist: "Anand Bhaskar, Shreya Ghoshal", duration: "220", image: "https://c.saavncdn.com/editorial/NowTrending_20260423085344_500x500.jpg" },
+  { id: "r4", title: "Samjho Na", artist: "Tanishk Bagchi, Jubin Nautiyal", duration: "245", image: "https://c.saavncdn.com/editorial/RomanticHits2026Hindi_20260707083404_500x500.jpg" },
+  { id: "r5", title: "Tu Mera Raiyyo", artist: "Sachet-Parampara", duration: "215", image: "https://c.saavncdn.com/editorial/NowTrending_20260423085344_500x500.jpg" },
+  { id: "r6", title: "Waqt", artist: "Vishal Mishra, Kaushal Kishore", duration: "235", image: "https://c.saavncdn.com/editorial/artist_selects-1039520512_20220317082925_500x500.jpg" },
+  { id: "r7", title: "Aayi Nai", artist: "Pawan Singh, Simran Choudhary, Sachin-Jigar", duration: "178", image: "https://c.saavncdn.com/373/Stree-2-Hindi-2024-20240828083834-500x500.jpg" },
+  { id: "r8", title: "Khoobsurat", artist: "Vishal Mishra, Sachin-Jigar", duration: "244", image: "https://c.saavncdn.com/373/Stree-2-Hindi-2024-20240828083834-500x500.jpg" },
+  { id: "r9", title: "Taras", artist: "Jasleen Royal, Sachin-Jigar", duration: "167", image: "https://c.saavncdn.com/545/Munjya-Hindi-2024-20240608075001-500x500.jpg" },
+  { id: "r10", title: "Naina", artist: "Diljit Dosanjh, Badshah", duration: "180", image: "https://c.saavncdn.com/978/Crew-Hindi-2024-20240329061502-500x500.jpg" },
+  { id: "r11", title: "Soni Soni", artist: "Darshan Raval, Jonita Gandhi", duration: "198", image: "https://c.saavncdn.com/791/Ishq-Vishk-Rebound-Hindi-2024-20240621063412-500x500.jpg" },
+  { id: "r12", title: "Zaalim", artist: "Badshah, Payal Dev", duration: "195", image: "https://c.saavncdn.com/843/Ek-Tha-Raja-Hindi-2024-20240426115002-500x500.jpg" }
+];
+
+let exploreSongsCache = {
+  popularSongs: [],
+  recentSongs: [],
+  expiresAt: 0
+};
+
+async function getExploreSongs() {
+  const now = Date.now();
+  if (exploreSongsCache.expiresAt > now && exploreSongsCache.popularSongs.length > 0 && exploreSongsCache.recentSongs.length > 0) {
+    return {
+      popularSongs: exploreSongsCache.popularSongs,
+      recentSongs: exploreSongsCache.recentSongs
+    };
+  }
+
+  const fetchJioPlaylist = async (listid) => {
+    try {
+      const url = `https://www.jiosaavn.com/api.php?__call=playlist.getDetails&listid=${encodeURIComponent(listid)}&_format=json&_marker=0&ctx=web6dot0`;
+      const res = await fetch(url, {
+        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" }
+      });
+      const data = await res.json();
+      const rawSongs = data.songs || data.list || [];
+      return rawSongs.map(s => ({
+        id: s.id,
+        title: decodeHtml(s.title || s.song || ""),
+        artist: decodeHtml(s.singers || s.primary_artists || s.music || "Unknown Artist"),
+        duration: s.duration,
+        image: s.image ? s.image.replace("150x150", "500x500").replace("50x50", "500x500") : null,
+        has_lyrics: s.has_lyrics === 'true'
+      })).filter(s => s.title && s.artist);
+    } catch (err) {
+      console.warn(`Failed to fetch JioSaavn playlist ${listid}:`, err.message);
+      return [];
+    }
+  };
+
+  try {
+    const [popularResult, recentResult] = await Promise.all([
+      fetchJioPlaylist("1134543272"), // Hindi India Superhits Top 50
+      fetchJioPlaylist("1210453303")  // Latest Hindi Songs
+    ]);
+
+    let finalPopular = popularResult.length > 0 ? popularResult : await fetchJioPlaylist("47599074");
+    if (finalPopular.length === 0) finalPopular = fallbackPopularSongs;
+
+    let finalRecent = recentResult.length > 0 ? recentResult : fallbackRecentSongs;
+
+    exploreSongsCache = {
+      popularSongs: finalPopular,
+      recentSongs: finalRecent,
+      expiresAt: now + 60 * 60 * 1000 // 1 hour TTL
+    };
+
+    return {
+      popularSongs: finalPopular,
+      recentSongs: finalRecent
+    };
+  } catch (err) {
+    console.error("Error in getExploreSongs:", err);
+    return {
+      popularSongs: fallbackPopularSongs,
+      recentSongs: fallbackRecentSongs
+    };
+  }
+}
+
+// Featured / Curated Playlists, Trending Albums, Popular & Recent Songs
 app.get("/api/saavn/featured", async (req, res) => {
   try {
+    const { popularSongs, recentSongs } = await getExploreSongs();
+
     const featuredPlaylists = [
       { id: "47599074", title: "Trending Bollywood Hits", image: "https://c.saavncdn.com/editorial/NowTrending_20260423085344_500x500.jpg", count: 37, category: "Trending" },
       { id: "154546814", title: "90s Romance - Hindi", image: "https://c.saavncdn.com/editorial/90sRomanceHindi_20260302042658_500x500.jpg", count: 42, category: "90s & 2000s" },
@@ -1126,7 +1238,13 @@ app.get("/api/saavn/featured", async (req, res) => {
       { id: "10660301", title: "Raabta", artist: "Pritam, JAM8", year: "2017", category: "Romance", image: "https://c.saavncdn.com/023/Raabta-Hindi-2017-500x500.jpg" }
     ];
 
-    res.json({ success: true, playlists: featuredPlaylists, albums: trendingAlbums });
+    res.json({
+      success: true,
+      popularSongs,
+      recentSongs,
+      playlists: featuredPlaylists,
+      albums: trendingAlbums
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
