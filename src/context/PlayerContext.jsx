@@ -60,6 +60,18 @@ export function PlayerProvider({ children }) {
     currentTrackRef.current = currentTrack;
   }, [currentTrack]);
 
+  // Keep body class synced with player visibility so modals and bottom-sheets adapt
+  useEffect(() => {
+    if (isPlayerVisible) {
+      document.body.classList.add('player-active');
+    } else {
+      document.body.classList.remove('player-active');
+    }
+    return () => {
+      document.body.classList.remove('player-active');
+    };
+  }, [isPlayerVisible]);
+
   // Initialize HTML5 Audio & YouTube IFrame
   useEffect(() => {
     const audio = new Audio();
@@ -311,30 +323,6 @@ export function PlayerProvider({ children }) {
     }
   }, []);
 
-  const togglePlay = useCallback(() => {
-    if (audioRef.current && audioRef.current.src) {
-      if (audioRef.current.paused) {
-        audioRef.current.play().catch(() => {});
-        setIsPlaying(true);
-      } else {
-        audioRef.current.pause();
-        setIsPlaying(false);
-      }
-    } else if (playbackSource === 'youtube' && ytPlayerRef.current) {
-      try {
-        if (isPlaying) {
-          ytPlayerRef.current.pauseVideo();
-          setIsPlaying(false);
-        } else {
-          ytPlayerRef.current.playVideo();
-          setIsPlaying(true);
-        }
-      } catch (e) {}
-    } else if (!isPlaying && playlistQueueRef.current.length > 0) {
-      playTrackByIndex(0);
-    }
-  }, [playbackSource, isPlaying]);
-
   const playTrackByIndex = useCallback(
     (index) => {
       const queue = playlistQueueRef.current;
@@ -345,6 +333,47 @@ export function PlayerProvider({ children }) {
     },
     [playMusic]
   );
+
+  const pauseMusic = useCallback(() => {
+    if (audioRef.current && !audioRef.current.paused) {
+      audioRef.current.pause();
+    }
+    if (playbackSourceRef.current === 'youtube' && ytPlayerRef.current && ytPlayerRef.current.pauseVideo) {
+      try {
+        ytPlayerRef.current.pauseVideo();
+      } catch (e) {}
+    }
+    setIsPlaying(false);
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = 'paused';
+    }
+  }, []);
+
+  const resumeMusic = useCallback(() => {
+    if (audioRef.current && audioRef.current.src && audioRef.current.paused) {
+      audioRef.current.play().catch((err) => console.warn('Resume audio play failed:', err));
+      setIsPlaying(true);
+    } else if (playbackSourceRef.current === 'youtube' && ytPlayerRef.current && ytPlayerRef.current.playVideo) {
+      try {
+        ytPlayerRef.current.playVideo();
+        setIsPlaying(true);
+      } catch (e) {}
+    } else if (!isPlaying && playlistQueueRef.current.length > 0) {
+      const idx = currentTrackIndexRef.current >= 0 ? currentTrackIndexRef.current : 0;
+      playTrackByIndex(idx);
+    }
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = 'playing';
+    }
+  }, [isPlaying, playTrackByIndex]);
+
+  const togglePlay = useCallback(() => {
+    if (isPlaying) {
+      pauseMusic();
+    } else {
+      resumeMusic();
+    }
+  }, [isPlaying, pauseMusic, resumeMusic]);
 
   const playNext = useCallback(
     (autoEnded = false) => {
@@ -605,6 +634,8 @@ export function PlayerProvider({ children }) {
         cancelSleepTimer,
         playMusic,
         playTrackByIndex,
+        pauseMusic,
+        resumeMusic,
         togglePlay,
         playNext,
         playPrevious,

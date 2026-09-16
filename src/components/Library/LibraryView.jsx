@@ -6,7 +6,7 @@ import { useUI } from '../../context/UIContext';
 export default function LibraryView() {
   const [activeTab, setActiveTab] = useState('songs');
   const { library, toggleTrackLike, toggleAlbumLike, togglePlaylistLike, deletePlaylist } = useLibrary();
-  const { playMusic } = usePlayer();
+  const { playMusic, pauseMusic, resumeMusic, currentTrack, isPlaying } = usePlayer();
   const { openModal } = useUI();
 
   const likedTracks = library.likedTracks || [];
@@ -69,11 +69,25 @@ export default function LibraryView() {
               likedTracks.map((item, index) => {
                 const query = `${item.track} ${item.artist}`;
                 const songImg = item.image || defaultImg;
+                const isThis = currentTrack && currentTrack.track?.toLowerCase().trim() === (item.track || '').toLowerCase().trim();
+
+                const handleTrackClick = () => {
+                  if (isThis) {
+                    if (isPlaying) {
+                      pauseMusic();
+                    } else {
+                      resumeMusic();
+                    }
+                  } else {
+                    playMusic(item.track, item.artist, songImg, likedTracks, index);
+                  }
+                };
+
                 return (
-                  <div key={`${item.track}-${item.artist}-${index}`} className="track-item">
+                  <div key={`${item.track}-${item.artist}-${index}`} className={`track-item ${isThis ? 'track-item-playing' : ''}`}>
                     <div
                       className="track-thumbnail-wrap"
-                      onClick={() => playMusic(item.track, item.artist, songImg, likedTracks, index)}
+                      onClick={handleTrackClick}
                     >
                       <img
                         src={songImg}
@@ -84,9 +98,19 @@ export default function LibraryView() {
                     </div>
                     <div
                       className="track-info"
-                      onClick={() => playMusic(item.track, item.artist, songImg, likedTracks, index)}
+                      onClick={handleTrackClick}
                     >
-                      <div className="track-name">{index + 1}. {item.track}</div>
+                      <div className="track-name" style={{ color: isThis ? 'var(--neon-cyan)' : 'inherit', fontWeight: isThis ? 700 : 'normal' }}>
+                        {index + 1}. {item.track}
+                        {isThis && isPlaying && (
+                          <div className="equalizer-waves" style={{ display: 'inline-flex', marginLeft: '6px', height: '13px' }}>
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                          </div>
+                        )}
+                      </div>
                       <div className="track-stats">
                         <i className="fas fa-microphone"></i> {item.artist}
                       </div>
@@ -116,14 +140,20 @@ export default function LibraryView() {
                         rel="noreferrer"
                         className="yt-link"
                         title="Watch on YouTube"
+                        onClick={(e) => e.stopPropagation()}
                       >
                         <i className="fab fa-youtube"></i>
                       </a>
                       <div
                         className="track-play"
-                        onClick={() => playMusic(item.track, item.artist, songImg, likedTracks, index)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleTrackClick();
+                        }}
+                        style={isThis && isPlaying ? { background: 'var(--neon-cyan)', color: '#000' } : {}}
+                        title={isThis && isPlaying ? 'Pause' : 'Play'}
                       >
-                        <i className="fas fa-play"></i>
+                        <i className={`fas ${isThis && isPlaying ? 'fa-pause' : 'fa-play'}`}></i>
                       </div>
                     </div>
                   </div>

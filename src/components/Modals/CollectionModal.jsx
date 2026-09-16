@@ -5,7 +5,7 @@ import { useLibrary } from '../../context/LibraryContext';
 
 export default function CollectionModal() {
   const { activeModal, modalData, closeModal, openModal } = useUI();
-  const { playMusic, currentTrack, isPlaying } = usePlayer();
+  const { playMusic, pauseMusic, resumeMusic, togglePlay, currentTrack, isPlaying } = usePlayer();
   const {
     isTrackLiked,
     toggleTrackLike,
@@ -92,13 +92,47 @@ export default function CollectionModal() {
     id: s.id || '',
   }));
 
+  const isMatch = (trackTitle, trackArtist) => {
+    if (!currentTrack || !trackTitle) return false;
+    const currentT = (currentTrack.track || '').toLowerCase().trim();
+    const itemT = (trackTitle || '').toLowerCase().trim();
+    if (currentT !== itemT) return false;
+    if (!trackArtist || !currentTrack.artist) return true;
+    const a1 = (currentTrack.artist || '').toLowerCase().trim();
+    const a2 = (trackArtist || '').toLowerCase().trim();
+    return a1 === a2 || a1.includes(a2) || a2.includes(a1);
+  };
+
+  const currentTrackInCollection = queue.some((s) => isMatch(s.track, s.artist));
+  const isCollectionPlaying = currentTrackInCollection && isPlaying;
+
   const handlePlayAll = (shuffle = false) => {
     if (queue.length === 0) return;
     if (shuffle) {
       const randIdx = Math.floor(Math.random() * queue.length);
       playMusic(queue[randIdx].track, queue[randIdx].artist, queue[randIdx].image, queue, randIdx);
+      return;
+    }
+    if (isCollectionPlaying) {
+      pauseMusic();
+      return;
+    }
+    if (currentTrackInCollection && !isPlaying) {
+      resumeMusic();
+      return;
+    }
+    playMusic(queue[0].track, queue[0].artist, queue[0].image, queue, 0);
+  };
+
+  const handleTrackClick = (songTitle, songArtist, songImg, songIdx) => {
+    if (isMatch(songTitle, songArtist)) {
+      if (isPlaying) {
+        pauseMusic();
+      } else {
+        resumeMusic();
+      }
     } else {
-      playMusic(queue[0].track, queue[0].artist, queue[0].image, queue, 0);
+      playMusic(songTitle, songArtist, songImg, queue, songIdx);
     }
   };
 
@@ -174,9 +208,16 @@ export default function CollectionModal() {
                   className="search-btn"
                   id="collectionPlayAllBtn"
                   onClick={() => handlePlayAll(false)}
-                  style={{ padding: '10px 24px', borderRadius: '25px' }}
+                  style={{
+                    padding: '10px 24px',
+                    borderRadius: '25px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}
                 >
-                  <i className="fas fa-play"></i> Play All
+                  <i className={`fas ${isCollectionPlaying ? 'fa-pause' : 'fa-play'}`}></i>{' '}
+                  {isCollectionPlaying ? 'Pause' : currentTrackInCollection ? 'Resume' : 'Play All'}
                 </button>
                 <button
                   className="tab-btn"
@@ -216,10 +257,7 @@ export default function CollectionModal() {
                 const title = s.title || s.song;
                 const artist = s.artist || s.singers || '';
                 const songImg = s.image || collection.image;
-                const isThis =
-                  currentTrack &&
-                  currentTrack.track.toLowerCase().trim() === title.toLowerCase().trim() &&
-                  currentTrack.artist.toLowerCase().trim() === artist.toLowerCase().trim();
+                const isThis = isMatch(title, artist);
                 const liked = isTrackLiked(title, artist);
 
                 return (
@@ -230,7 +268,7 @@ export default function CollectionModal() {
                   >
                     <div
                       className="track-thumbnail-wrap"
-                      onClick={() => playMusic(title, artist, songImg, queue, idx)}
+                      onClick={() => handleTrackClick(title, artist, songImg, idx)}
                     >
                       <img
                         src={songImg}
@@ -244,7 +282,7 @@ export default function CollectionModal() {
                     </div>
                     <div
                       className="track-info"
-                      onClick={() => playMusic(title, artist, songImg, queue, idx)}
+                      onClick={() => handleTrackClick(title, artist, songImg, idx)}
                     >
                       <div
                         className="track-name"
@@ -310,8 +348,12 @@ export default function CollectionModal() {
                       )}
                       <div
                         className="track-play"
-                        onClick={() => playMusic(title, artist, songImg, queue, idx)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleTrackClick(title, artist, songImg, idx);
+                        }}
                         style={isThis && isPlaying ? { background: 'var(--neon-cyan)', color: '#000' } : {}}
+                        title={isThis && isPlaying ? 'Pause' : 'Play'}
                       >
                         <i className={`fas ${isThis && isPlaying ? 'fa-pause' : 'fa-play'}`}></i>
                       </div>
