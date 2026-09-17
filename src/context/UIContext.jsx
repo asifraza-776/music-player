@@ -68,77 +68,83 @@ export function UIProvider({ children }) {
     }, 2800);
   }, []);
 
-  const lastBackPressTimeRef = useRef(0);
+  const [showExitPrompt, setShowExitPrompt] = useState(false);
+  const showExitPromptRef = useRef(false);
+  useEffect(() => {
+    showExitPromptRef.current = showExitPrompt;
+  }, [showExitPrompt]);
+
+  const openExitPrompt = useCallback(() => {
+    setShowExitPrompt(true);
+  }, []);
+
+  const closeExitPrompt = useCallback(() => {
+    setShowExitPrompt(false);
+  }, []);
+
+  const confirmExit = useCallback(() => {
+    setShowExitPrompt(false);
+    try {
+      window.close();
+    } catch (e) {}
+    setTimeout(() => {
+      window.history.go(-10);
+    }, 50);
+  }, []);
+
   const showToastRef = useRef(showToast);
   useEffect(() => {
     showToastRef.current = showToast;
   }, [showToast]);
 
-  // Smart Browser History (popstate) Listener with Double-Back Exit Protection
+  // Bulletproof Browser History & Back Protection Listener
   useEffect(() => {
-    const initialView = ['explore', 'search', 'charts', 'library'].includes(
-      window.location.hash.replace('#', '')
-    )
-      ? window.location.hash.replace('#', '')
-      : 'explore';
+    const basePath = window.location.pathname + window.location.search;
 
-    // Base state
-    window.history.replaceState({ view: initialView, modal: null, isBase: true }, '', `#${initialView}`);
-    // If starting on explore, arm the guard so first back press is caught
-    if (initialView === 'explore') {
-      window.history.pushState({ view: 'explore', modal: null, isGuard: true }, '', '#explore');
-    }
+    // 1. Distinct root base entry (browser will NEVER collapse it with #explore)
+    window.history.replaceState({ isRootBase: true }, '', basePath + '#root');
+    // 2. Active in-app entry
+    window.history.pushState({ view: 'explore', inApp: true }, '', basePath + '#explore');
 
     const handlePopState = (e) => {
       const state = e.state;
 
-      // 1. If any modal (Playlist, Album, Lyrics, Sleep Timer) is open:
-      // Pressing back MUST close the modal and keep user on the current page!
+      // 1. If Exit Prompt was already open and user presses back AGAIN (Double-tap exit):
+      if (showExitPromptRef.current) {
+        setShowExitPrompt(false);
+        try { window.close(); } catch (err) {}
+        window.history.go(-10);
+        return;
+      }
+
+      // 2. If any modal (Playlist, Album, Lyrics, Sleep Timer) is open:
+      // Back button MUST close only the modal and keep user on the current page!
       if (activeModalRef.current) {
         setActiveModal(null);
         setModalData(null);
-        if (state?.view && state.view !== currentViewRef.current) {
-          setCurrentView(state.view);
-        }
         return;
       }
 
-      // 2. If state had a modal (user pressed forward):
-      if (state?.modal) {
-        setActiveModal(state.modal);
-        if (state.view) setCurrentView(state.view);
-        return;
-      }
+      // 3. User reached root base (#root) or pressed back from Explore:
+      // This is the TOTAL BACK moment!
+      if (state?.isRootBase || currentViewRef.current === 'explore' || state?.view === 'root') {
+        // Instantly re-push #explore so browser NEVER exits abruptly
+        window.history.pushState({ view: 'explore', inApp: true }, '', basePath + '#explore');
+        setCurrentView('explore');
 
-      // 3. Double-tap back protection on root Explore view
-      if (currentViewRef.current === 'explore' && (!state?.view || state.view === 'explore')) {
-        const now = Date.now();
-        if (now - lastBackPressTimeRef.current < 2000) {
-          // Double-tap detected within 2 seconds -> Allow real browser exit!
-          lastBackPressTimeRef.current = 0;
-          window.history.back();
-          return;
-        }
-
-        // First tap: notify user and re-arm the guard
-        lastBackPressTimeRef.current = now;
+        // Open the Exit Confirmation Banner / Modal!
+        setShowExitPrompt(true);
         if (showToastRef.current) {
-          showToastRef.current('Press back again to exit 👋', 'Double-tap to close MelodySphere', 'info');
+          showToastRef.current('Quit MelodySphere?', 'Tap Quit or press back again to exit', 'info');
         }
-        // Re-push guard state so the second tap can proceed or timeout resets
-        window.history.pushState({ view: 'explore', modal: null, isGuard: true }, '', '#explore');
         return;
       }
 
-      // 4. Tab navigation back/forward (Library -> Search -> Explore)
-      if (state?.view) {
+      // 4. Tab navigation back/forward (Library / Search / Charts -> Explore)
+      if (state?.view && state.view !== 'root') {
         setCurrentView(state.view);
-        if (state.view === 'explore') {
-          window.history.pushState({ view: 'explore', modal: null, isGuard: true }, '', '#explore');
-        }
       } else {
         setCurrentView('explore');
-        window.history.pushState({ view: 'explore', modal: null, isGuard: true }, '', '#explore');
       }
     };
 
@@ -153,24 +159,28 @@ export function UIProvider({ children }) {
       setActiveModal(null);
       setModalData(null);
     }
+    if (showExitPromptRef.current) {
+      setShowExitPrompt(false);
+    }
 
     setCurrentView(view);
     if (pushHistory) {
-      window.history.pushState({ view, modal: null }, '', `#${view}`);
-      if (view === 'explore') {
-        window.history.pushState({ view: 'explore', modal: null, isGuard: true }, '', '#explore');
-      }
+      const basePath = window.location.pathname + window.location.search;
+      window.history.pushState({ view, inApp: true }, '', basePath + `#${view}`);
     }
   }, []);
 
   const openModal = useCallback((type, data = null) => {
+    if (showExitPromptRef.current) {
+      setShowExitPrompt(false);
+    }
     setActiveModal(type);
     setModalData(data);
-    // Push modal entry into browser history so hardware/browser back closes it!
+    const basePath = window.location.pathname + window.location.search;
     window.history.pushState(
-      { view: currentViewRef.current, modal: type },
+      { view: currentViewRef.current, modal: type, inApp: true },
       '',
-      `#${currentViewRef.current || 'explore'}`
+      basePath + `#${currentViewRef.current || 'explore'}`
     );
   }, []);
 
@@ -178,7 +188,6 @@ export function UIProvider({ children }) {
     if (!activeModalRef.current) return;
     setActiveModal(null);
     setModalData(null);
-    // If the modal was pushed to history, pop it so browser history stays clean
     if (window.history.state?.modal) {
       window.history.back();
     }
@@ -195,6 +204,10 @@ export function UIProvider({ children }) {
         modalData,
         openModal,
         closeModal,
+        showExitPrompt,
+        openExitPrompt,
+        closeExitPrompt,
+        confirmExit,
         toasts,
         showToast,
         canInstallPWA,
