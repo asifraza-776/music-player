@@ -74,7 +74,7 @@ export function UIProvider({ children }) {
     showToastRef.current = showToast;
   }, [showToast]);
 
-  // Smart Browser History (popstate) Listener with Exit Confirmation Modal
+  // Smart Browser History (popstate) Listener with Pure Double-Back Exit Protection
   useEffect(() => {
     const initialView = ['explore', 'search', 'charts', 'library'].includes(
       window.location.hash.replace('#', '')
@@ -82,24 +82,17 @@ export function UIProvider({ children }) {
       ? window.location.hash.replace('#', '')
       : 'explore';
 
-    const basePath = window.location.pathname + window.location.search;
-
-    // Base root state without hash
-    window.history.replaceState({ isRoot: true }, '', basePath);
-    // Active app state with distinct hash so browser records a real history step
-    window.history.pushState({ view: initialView, isApp: true }, '', `#${initialView}`);
+    // Base root state
+    window.history.replaceState({ view: initialView, modal: null, isBase: true }, '', `#${initialView}`);
+    // If starting on explore, arm the guard so first back press is caught
+    if (initialView === 'explore') {
+      window.history.pushState({ view: 'explore', modal: null, isGuard: true }, '', '#explore');
+    }
 
     const handlePopState = (e) => {
       const state = e.state;
 
-      // 1. If ExitModal is already open and user presses back on phone -> close the ExitModal!
-      if (activeModalRef.current === 'exit') {
-        setActiveModal(null);
-        setModalData(null);
-        return;
-      }
-
-      // 2. If any other modal (Playlist, Album, Lyrics, Sleep Timer) is open:
+      // 1. If any modal (Playlist, Album, Lyrics, Sleep Timer) is open:
       // Pressing back MUST close the modal and keep user on the current page!
       if (activeModalRef.current) {
         setActiveModal(null);
@@ -110,27 +103,41 @@ export function UIProvider({ children }) {
         return;
       }
 
-      // 3. If forward navigation to a modal
-      if (state?.modal && state.modal !== 'exit') {
+      // 2. If state had a modal (user pressed forward):
+      if (state?.modal) {
         setActiveModal(state.modal);
         if (state.view) setCurrentView(state.view);
         return;
       }
 
-      // 4. If user is at root (Explore) and presses Back -> Open Exit Confirmation Modal!
-      if (currentViewRef.current === 'explore' || state?.isRoot) {
-        setActiveModal('exit');
-        setModalData(null);
-        // Re-push active state so the exit modal stays mounted and user stays on the page
-        window.history.pushState({ view: 'explore', isApp: true, modal: 'exit' }, '', '#explore');
+      // 3. Double-tap back protection on root Explore view
+      if (currentViewRef.current === 'explore' && (!state?.view || state.view === 'explore')) {
+        const now = Date.now();
+        if (now - lastBackPressTimeRef.current < 2000) {
+          // Double-tap confirmed within 2s -> Allow real browser exit!
+          lastBackPressTimeRef.current = 0;
+          window.history.back();
+          return;
+        }
+
+        // First tap: notify user and re-arm the guard
+        lastBackPressTimeRef.current = now;
+        if (showToastRef.current) {
+          showToastRef.current('Press back again to exit 👋', '', 'info');
+        }
+        window.history.pushState({ view: 'explore', modal: null, isGuard: true }, '', '#explore');
         return;
       }
 
-      // 5. Tab navigation back/forward (Library -> Search -> Explore)
+      // 4. Tab navigation back/forward (Library -> Search -> Explore)
       if (state?.view) {
         setCurrentView(state.view);
+        if (state.view === 'explore') {
+          window.history.pushState({ view: 'explore', modal: null, isGuard: true }, '', '#explore');
+        }
       } else {
         setCurrentView('explore');
+        window.history.pushState({ view: 'explore', modal: null, isGuard: true }, '', '#explore');
       }
     };
 
@@ -148,7 +155,10 @@ export function UIProvider({ children }) {
 
     setCurrentView(view);
     if (pushHistory) {
-      window.history.pushState({ view, isApp: true }, '', `#${view}`);
+      window.history.pushState({ view, modal: null }, '', `#${view}`);
+      if (view === 'explore') {
+        window.history.pushState({ view: 'explore', modal: null, isGuard: true }, '', '#explore');
+      }
     }
   }, []);
 
@@ -165,16 +175,8 @@ export function UIProvider({ children }) {
 
   const closeModal = useCallback(() => {
     if (!activeModalRef.current) return;
-    const isExit = activeModalRef.current === 'exit';
     setActiveModal(null);
     setModalData(null);
-
-    // If it was the ExitModal, DO NOT call history.back() because that triggers the popstate exit trap again!
-    if (isExit) {
-      return;
-    }
-
-    // For other modals (collection, lyrics, sleep), pop the history entry cleanly
     if (window.history.state?.modal) {
       window.history.back();
     }
