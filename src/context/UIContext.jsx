@@ -103,12 +103,12 @@ export function UIProvider({ children }) {
       ? window.location.hash.replace('#', '')
       : 'explore';
 
-    // Base root state
-    window.history.replaceState({ view: initialView, modal: null, isBase: true }, '', `#${initialView}`);
-    // If starting on explore, arm the guard so first back press is caught
-    if (initialView === 'explore') {
-      window.history.pushState({ view: 'explore', modal: null, isGuard: true }, '', '#explore');
-    }
+    const basePath = window.location.pathname + window.location.search;
+
+    // Base root state without hash so browser records a real back step from #explore to basePath
+    window.history.replaceState({ view: 'explore', isRoot: true, isBase: true }, '', basePath);
+    // Active app state with distinct hash so first back press on app open is reliably caught
+    window.history.pushState({ view: initialView, modal: null, isGuard: true }, '', `#${initialView}`);
 
     const handlePopState = (e) => {
       if (isExitingRef.current) {
