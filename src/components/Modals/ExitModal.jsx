@@ -4,20 +4,22 @@ import { usePlayer } from '../../context/PlayerContext';
 
 export default function ExitModal() {
   const { activeModal, closeModal } = useUI();
-  const { currentTrack, isPlaying } = usePlayer();
+  const { currentTrack, isPlaying, closePlayer } = usePlayer();
 
   if (activeModal !== 'exit') return null;
 
   const handleQuit = () => {
+    if (closePlayer) {
+      closePlayer();
+    }
+    closeModal();
     try {
       window.close();
     } catch (e) {}
 
-    if (window.history.length > 2) {
-      window.history.go(-2);
-    } else {
-      window.history.back();
-    }
+    setTimeout(() => {
+      window.location.href = 'about:blank';
+    }, 150);
   };
 
   return (
@@ -36,7 +38,10 @@ export default function ExitModal() {
           textAlign: 'center',
           border: '1px solid rgba(0, 242, 254, 0.3)',
           boxShadow: '0 20px 60px rgba(0, 0, 0, 0.9), 0 0 35px rgba(0, 242, 254, 0.15)',
+          position: 'relative',
+          zIndex: 10006,
         }}
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header" style={{ justifyContent: 'center', position: 'relative', padding: '22px 20px 14px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
@@ -63,8 +68,20 @@ export default function ExitModal() {
           </div>
           <i
             className="fas fa-times close-modal"
-            style={{ position: 'absolute', right: '18px', top: '18px', cursor: 'pointer' }}
-            onClick={closeModal}
+            style={{
+              position: 'absolute',
+              right: '18px',
+              top: '18px',
+              cursor: 'pointer',
+              zIndex: 20,
+              padding: '8px',
+              fontSize: '20px',
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              closeModal();
+            }}
+            title="Close"
           ></i>
         </div>
 
@@ -114,8 +131,12 @@ export default function ExitModal() {
 
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
             <button
+              type="button"
               className="search-btn"
-              onClick={closeModal}
+              onClick={(e) => {
+                e.stopPropagation();
+                closeModal();
+              }}
               style={{
                 flex: 1,
                 padding: '12px 16px',
@@ -132,7 +153,11 @@ export default function ExitModal() {
               <i className="fas fa-play"></i> Keep Playing
             </button>
             <button
-              onClick={handleQuit}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleQuit();
+              }}
               style={{
                 flex: 1,
                 padding: '12px 16px',

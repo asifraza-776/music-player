@@ -74,27 +74,6 @@ export function UIProvider({ children }) {
     showToastRef.current = showToast;
   }, [showToast]);
 
-  // Ensure user-gesture history guard on mobile
-  useEffect(() => {
-    const armGuardOnInteraction = () => {
-      if (!window.location.hash || window.location.hash === '#') {
-        window.history.pushState(
-          { view: currentViewRef.current || 'explore', isApp: true },
-          '',
-          `#${currentViewRef.current || 'explore'}`
-        );
-      }
-    };
-    window.addEventListener('touchstart', armGuardOnInteraction, { passive: true });
-    window.addEventListener('pointerdown', armGuardOnInteraction, { passive: true });
-    window.addEventListener('click', armGuardOnInteraction, { passive: true });
-    return () => {
-      window.removeEventListener('touchstart', armGuardOnInteraction);
-      window.removeEventListener('pointerdown', armGuardOnInteraction);
-      window.removeEventListener('click', armGuardOnInteraction);
-    };
-  }, []);
-
   // Smart Browser History (popstate) Listener with Exit Confirmation Modal
   useEffect(() => {
     const initialView = ['explore', 'search', 'charts', 'library'].includes(
@@ -113,11 +92,10 @@ export function UIProvider({ children }) {
     const handlePopState = (e) => {
       const state = e.state;
 
-      // 1. If ExitModal is already open and user presses back again -> Allow real exit!
+      // 1. If ExitModal is already open and user presses back on phone -> close the ExitModal!
       if (activeModalRef.current === 'exit') {
         setActiveModal(null);
         setModalData(null);
-        window.history.back();
         return;
       }
 
@@ -143,7 +121,7 @@ export function UIProvider({ children }) {
       if (currentViewRef.current === 'explore' || state?.isRoot) {
         setActiveModal('exit');
         setModalData(null);
-        // Re-push active state so the exit modal remains open on screen
+        // Re-push active state so the exit modal stays mounted and user stays on the page
         window.history.pushState({ view: 'explore', isApp: true, modal: 'exit' }, '', '#explore');
         return;
       }
@@ -187,9 +165,16 @@ export function UIProvider({ children }) {
 
   const closeModal = useCallback(() => {
     if (!activeModalRef.current) return;
+    const isExit = activeModalRef.current === 'exit';
     setActiveModal(null);
     setModalData(null);
-    // If the modal was pushed to history, pop it so browser history stays clean
+
+    // If it was the ExitModal, DO NOT call history.back() because that triggers the popstate exit trap again!
+    if (isExit) {
+      return;
+    }
+
+    // For other modals (collection, lyrics, sleep), pop the history entry cleanly
     if (window.history.state?.modal) {
       window.history.back();
     }
