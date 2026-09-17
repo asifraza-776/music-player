@@ -43,7 +43,17 @@
             });
         }
     </script>
-  <script type="module" crossorigin src="/assets/index-Cz6aKZLg.js"></script>
+
+    <!-- Immediate History Guard to catch back press on fresh app load -->
+    <script>
+        try {
+            var path = window.location.pathname + window.location.search;
+            var hash = window.location.hash || '#explore';
+            window.history.replaceState({ view: 'explore', isBase: true, isRoot: true }, '', path);
+            window.history.pushState({ view: 'explore', modal: null, isGuard: true }, '', hash);
+        } catch (e) {}
+    </script>
+  <script type="module" crossorigin src="/assets/index-DfDHOPle.js"></script>
   <link rel="stylesheet" crossorigin href="/assets/index-DpcdEbj2.css">
 </head>
 

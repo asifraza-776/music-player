@@ -80,18 +80,32 @@ export function UIProvider({ children }) {
   // Arm history guard with user gesture to bypass mobile browser History Manipulation Intervention
   useEffect(() => {
     const armGuardOnGesture = () => {
+      const hasActivation = navigator.userActivation
+        ? navigator.userActivation.hasBeenActive
+        : true;
+      if (!hasActivation) return;
       if (guardGestureArmedRef.current) return;
+
       if (currentViewRef.current === 'explore' && !activeModalRef.current) {
         guardGestureArmedRef.current = true;
-        window.history.pushState({ view: 'explore', modal: null, isGuard: true }, '', '#explore');
+        // Update current history entry during user activation to lift Chromium HMI
+        window.history.replaceState(
+          { view: 'explore', modal: null, isGuard: true, gestured: true },
+          '',
+          window.location.hash || '#explore'
+        );
       }
     };
 
-    window.addEventListener('pointerdown', armGuardOnGesture, { passive: true });
-    window.addEventListener('touchstart', armGuardOnGesture, { passive: true });
+    const activationEvents = ['click', 'pointerup', 'touchend', 'mouseup', 'keydown'];
+    activationEvents.forEach((evt) => {
+      window.addEventListener(evt, armGuardOnGesture, { capture: true, passive: true });
+    });
+
     return () => {
-      window.removeEventListener('pointerdown', armGuardOnGesture);
-      window.removeEventListener('touchstart', armGuardOnGesture);
+      activationEvents.forEach((evt) => {
+        window.removeEventListener(evt, armGuardOnGesture, { capture: true });
+      });
     };
   }, []);
 
@@ -105,10 +119,12 @@ export function UIProvider({ children }) {
 
     const basePath = window.location.pathname + window.location.search;
 
-    // Base root state without hash so browser records a real back step from #explore to basePath
-    window.history.replaceState({ view: 'explore', isRoot: true, isBase: true }, '', basePath);
-    // Active app state with distinct hash so first back press on app open is reliably caught
-    window.history.pushState({ view: initialView, modal: null, isGuard: true }, '', `#${initialView}`);
+    // Check if index.html already initialized guard state
+    const currentState = window.history.state;
+    if (!currentState || !currentState.isGuard) {
+      window.history.replaceState({ view: 'explore', isRoot: true, isBase: true }, '', basePath);
+      window.history.pushState({ view: initialView, modal: null, isGuard: true }, '', `#${initialView}`);
+    }
 
     const handlePopState = (e) => {
       if (isExitingRef.current) {
@@ -178,11 +194,6 @@ export function UIProvider({ children }) {
       const targetView = state?.view || 'explore';
       currentViewRef.current = targetView;
       setCurrentView(targetView);
-
-      if (targetView === 'explore') {
-        window.history.pushState({ view: 'explore', modal: null, isGuard: true }, '', '#explore');
-        guardGestureArmedRef.current = true;
-      }
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -203,10 +214,11 @@ export function UIProvider({ children }) {
     currentViewRef.current = view;
     setCurrentView(view);
     if (pushHistory) {
-      window.history.pushState({ view, modal: null }, '', `#${view}`);
       if (view === 'explore') {
         window.history.pushState({ view: 'explore', modal: null, isGuard: true }, '', '#explore');
         guardGestureArmedRef.current = true;
+      } else {
+        window.history.pushState({ view, modal: null }, '', `#${view}`);
       }
     }
   }, []);
