@@ -12,7 +12,7 @@ import CollectionModal from './components/Modals/CollectionModal';
 import LyricsModal from './components/Modals/LyricsModal';
 import SleepTimerModal from './components/Modals/SleepTimerModal';
 import { CreatePlaylistModal, AddToPlaylistModal } from './components/Modals/PlaylistModals';
-import ExitAppModal from './components/Modals/ExitAppModal';
+import ExitModal from './components/Modals/ExitModal';
 import ToastContainer from './components/ToastContainer';
 
 function MainContent() {
@@ -47,7 +47,7 @@ function MainContent() {
       <SleepTimerModal />
       <CreatePlaylistModal />
       <AddToPlaylistModal />
-      <ExitAppModal />
+      <ExitModal />
 
       {/* Toast Notifications */}
       <ToastContainer />
