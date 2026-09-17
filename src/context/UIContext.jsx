@@ -68,7 +68,13 @@ export function UIProvider({ children }) {
     }, 2800);
   }, []);
 
-  // Smart Browser History (popstate) Listener for Native Back Button Navigation
+  const lastBackPressTimeRef = useRef(0);
+  const showToastRef = useRef(showToast);
+  useEffect(() => {
+    showToastRef.current = showToast;
+  }, [showToast]);
+
+  // Smart Browser History (popstate) Listener with Double-Back Exit Protection
   useEffect(() => {
     const initialView = ['explore', 'search', 'charts', 'library'].includes(
       window.location.hash.replace('#', '')
@@ -76,8 +82,12 @@ export function UIProvider({ children }) {
       ? window.location.hash.replace('#', '')
       : 'explore';
 
-    // Establish base history state so history is never null
-    window.history.replaceState({ view: initialView, modal: null }, '', `#${initialView}`);
+    // Base state
+    window.history.replaceState({ view: initialView, modal: null, isBase: true }, '', `#${initialView}`);
+    // If starting on explore, arm the guard so first back press is caught
+    if (initialView === 'explore') {
+      window.history.pushState({ view: 'explore', modal: null, isGuard: true }, '', '#explore');
+    }
 
     const handlePopState = (e) => {
       const state = e.state;
@@ -100,11 +110,35 @@ export function UIProvider({ children }) {
         return;
       }
 
-      // 3. Tab navigation back/forward (Library -> Search -> Explore)
+      // 3. Double-tap back protection on root Explore view
+      if (currentViewRef.current === 'explore' && (!state?.view || state.view === 'explore')) {
+        const now = Date.now();
+        if (now - lastBackPressTimeRef.current < 2000) {
+          // Double-tap detected within 2 seconds -> Allow real browser exit!
+          lastBackPressTimeRef.current = 0;
+          window.history.back();
+          return;
+        }
+
+        // First tap: notify user and re-arm the guard
+        lastBackPressTimeRef.current = now;
+        if (showToastRef.current) {
+          showToastRef.current('Press back again to exit 👋', 'Double-tap to close MelodySphere', 'info');
+        }
+        // Re-push guard state so the second tap can proceed or timeout resets
+        window.history.pushState({ view: 'explore', modal: null, isGuard: true }, '', '#explore');
+        return;
+      }
+
+      // 4. Tab navigation back/forward (Library -> Search -> Explore)
       if (state?.view) {
         setCurrentView(state.view);
+        if (state.view === 'explore') {
+          window.history.pushState({ view: 'explore', modal: null, isGuard: true }, '', '#explore');
+        }
       } else {
         setCurrentView('explore');
+        window.history.pushState({ view: 'explore', modal: null, isGuard: true }, '', '#explore');
       }
     };
 
@@ -123,6 +157,9 @@ export function UIProvider({ children }) {
     setCurrentView(view);
     if (pushHistory) {
       window.history.pushState({ view, modal: null }, '', `#${view}`);
+      if (view === 'explore') {
+        window.history.pushState({ view: 'explore', modal: null, isGuard: true }, '', '#explore');
+      }
     }
   }, []);
 
