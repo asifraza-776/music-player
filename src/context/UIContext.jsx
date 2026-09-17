@@ -141,15 +141,9 @@ export function UIProvider({ children }) {
         return;
       }
 
-      // 3. Double-tap back protection on Explore (Root) view:
-      // Catches whenever user is on explore OR when history pops to base/null/explore
-      const isTargetExplore = !state?.view || state.view === 'explore' || state?.isBase;
-      if (currentViewRef.current === 'explore' || isTargetExplore) {
-        if (currentViewRef.current !== 'explore') {
-          currentViewRef.current = 'explore';
-          setCurrentView('explore');
-        }
-
+      // 3. If currently on Explore (Root) view:
+      // User is ALREADY on Explore and pressed Back -> Trigger double-tap exit protection!
+      if (currentViewRef.current === 'explore') {
         const now = Date.now();
         if (now - lastBackPressTimeRef.current < 2000) {
           // Double-tap confirmed within 2s -> Allow real browser exit!
@@ -168,7 +162,7 @@ export function UIProvider({ children }) {
           return;
         }
 
-        // First tap on explore/root: notify user and re-arm the guard
+        // First tap while on Explore: notify user and re-arm the guard
         lastBackPressTimeRef.current = now;
         if (showToastRef.current) {
           showToastRef.current('Press back again to exit 👋', 'Tap back once more to close app', 'warning');
@@ -178,17 +172,14 @@ export function UIProvider({ children }) {
         return;
       }
 
-      // 4. Tab navigation back/forward (Library -> Search -> Explore)
-      if (state?.view) {
-        currentViewRef.current = state.view;
-        setCurrentView(state.view);
-        if (state.view === 'explore') {
-          window.history.pushState({ view: 'explore', modal: null, isGuard: true }, '', '#explore');
-          guardGestureArmedRef.current = true;
-        }
-      } else {
-        currentViewRef.current = 'explore';
-        setCurrentView('explore');
+      // 4. Tab navigation back/forward (e.g. Search / Charts / Library -> Explore):
+      // Returns smoothly to Explore WITHOUT showing any exit toast!
+      lastBackPressTimeRef.current = 0; // Reset exit timer
+      const targetView = state?.view || 'explore';
+      currentViewRef.current = targetView;
+      setCurrentView(targetView);
+
+      if (targetView === 'explore') {
         window.history.pushState({ view: 'explore', modal: null, isGuard: true }, '', '#explore');
         guardGestureArmedRef.current = true;
       }
@@ -200,6 +191,8 @@ export function UIProvider({ children }) {
 
   const setCurrentViewHandler = useCallback((view, pushHistory = true) => {
     if (!view || (view === currentViewRef.current && !activeModalRef.current)) return;
+
+    lastBackPressTimeRef.current = 0; // Reset exit timer on tab switch
 
     if (activeModalRef.current) {
       activeModalRef.current = null;
