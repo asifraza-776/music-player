@@ -11,7 +11,7 @@ export default function ToastContainer() {
       case 'success':
         return 'fa-check-circle';
       case 'warning':
-        return 'fa-exclamation-circle';
+        return 'fa-door-open';
       case 'error':
         return 'fa-times-circle';
       default:
@@ -24,13 +24,15 @@ export default function ToastContainer() {
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          className={`toast-item ${toast.leaving ? 'toast-leave' : ''}`}
+          className={`toast-item toast-${toast.type || 'info'} ${toast.leaving ? 'toast-leave' : ''}`}
         >
           <i className={`fas ${getIcon(toast.type)}`}></i>
-          <div>
-            <span style={{ fontWeight: 600 }}>{toast.title}</span>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <span style={{ fontWeight: 600, fontSize: '13px', lineHeight: 1.3 }}>{toast.title}</span>
             {toast.subtitle && (
-              <div style={{ fontSize: '11px', opacity: 0.85, marginTop: '2px' }}>{toast.subtitle}</div>
+              <div style={{ fontSize: '11px', opacity: 0.9, marginTop: '2px', color: 'rgba(255, 255, 255, 0.85)' }}>
+                {toast.subtitle}
+              </div>
             )}
           </div>
         </div>

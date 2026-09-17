@@ -3570,39 +3570,59 @@ input[type="range"].custom-slider::-moz-range-thumb {
    ========================================== */
 .toast-container {
     position: fixed;
-    bottom: 96px;
+    bottom: 30px;
     left: 50%;
     transform: translateX(-50%);
-    z-index: 99999;
+    z-index: 999999;
     display: flex;
     flex-direction: column;
     gap: 8px;
     pointer-events: none;
     align-items: center;
+    transition: bottom 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    width: max-content;
+    max-width: 92vw;
+}
+
+body.player-active .toast-container {
+    bottom: 105px;
 }
 
 .toast-item {
-    background: rgba(18, 16, 35, 0.92);
-    border: 1px solid rgba(0, 242, 254, 0.35);
-    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.7), 0 0 20px rgba(0, 242, 254, 0.25);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    background: rgba(16, 14, 32, 0.95);
+    border: 1px solid rgba(0, 242, 254, 0.4);
+    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.8), 0 0 25px rgba(0, 242, 254, 0.25);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
     color: #fff;
-    padding: 10px 22px;
-    border-radius: 30px;
-    font-size: 13px;
-    font-weight: 500;
+    padding: 11px 24px;
+    border-radius: 35px;
+    font-size: 13.5px;
+    font-weight: 600;
     display: inline-flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     animation: toastPopIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
     pointer-events: auto;
-    white-space: nowrap;
+    white-space: normal;
+    text-align: left;
 }
 
 .toast-item i {
     color: var(--neon-cyan);
-    font-size: 14px;
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.toast-item.toast-warning {
+    border: 1px solid rgba(255, 8, 68, 0.5);
+    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.85), 0 0 25px rgba(255, 8, 68, 0.35);
+    background: rgba(22, 13, 30, 0.96);
+}
+
+.toast-item.toast-warning i {
+    color: var(--neon-pink);
+    font-size: 17px;
 }
 
 .toast-item.toast-leave {

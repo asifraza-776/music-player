@@ -70,9 +70,30 @@ export function UIProvider({ children }) {
 
   const lastBackPressTimeRef = useRef(0);
   const showToastRef = useRef(showToast);
+  const isExitingRef = useRef(false);
+  const guardGestureArmedRef = useRef(false);
+
   useEffect(() => {
     showToastRef.current = showToast;
   }, [showToast]);
+
+  // Arm history guard with user gesture to bypass mobile browser History Manipulation Intervention
+  useEffect(() => {
+    const armGuardOnGesture = () => {
+      if (guardGestureArmedRef.current) return;
+      if (currentViewRef.current === 'explore' && !activeModalRef.current) {
+        guardGestureArmedRef.current = true;
+        window.history.pushState({ view: 'explore', modal: null, isGuard: true }, '', '#explore');
+      }
+    };
+
+    window.addEventListener('pointerdown', armGuardOnGesture, { passive: true });
+    window.addEventListener('touchstart', armGuardOnGesture, { passive: true });
+    return () => {
+      window.removeEventListener('pointerdown', armGuardOnGesture);
+      window.removeEventListener('touchstart', armGuardOnGesture);
+    };
+  }, []);
 
   // Smart Browser History (popstate) Listener with Pure Double-Back Exit Protection
   useEffect(() => {
@@ -90,14 +111,20 @@ export function UIProvider({ children }) {
     }
 
     const handlePopState = (e) => {
+      if (isExitingRef.current) {
+        return;
+      }
+
       const state = e.state;
 
       // 1. If any modal (Playlist, Album, Lyrics, Sleep Timer) is open:
       // Pressing back MUST close the modal and keep user on the current page!
       if (activeModalRef.current) {
+        activeModalRef.current = null;
         setActiveModal(null);
         setModalData(null);
         if (state?.view && state.view !== currentViewRef.current) {
+          currentViewRef.current = state.view;
           setCurrentView(state.view);
         }
         return;
@@ -105,39 +132,65 @@ export function UIProvider({ children }) {
 
       // 2. If state had a modal (user pressed forward):
       if (state?.modal) {
+        activeModalRef.current = state.modal;
         setActiveModal(state.modal);
-        if (state.view) setCurrentView(state.view);
+        if (state.view) {
+          currentViewRef.current = state.view;
+          setCurrentView(state.view);
+        }
         return;
       }
 
-      // 3. Double-tap back protection on root Explore view
-      if (currentViewRef.current === 'explore' && (!state?.view || state.view === 'explore')) {
+      // 3. Double-tap back protection on Explore (Root) view:
+      // Catches whenever user is on explore OR when history pops to base/null/explore
+      const isTargetExplore = !state?.view || state.view === 'explore' || state?.isBase;
+      if (currentViewRef.current === 'explore' || isTargetExplore) {
+        if (currentViewRef.current !== 'explore') {
+          currentViewRef.current = 'explore';
+          setCurrentView('explore');
+        }
+
         const now = Date.now();
         if (now - lastBackPressTimeRef.current < 2000) {
           // Double-tap confirmed within 2s -> Allow real browser exit!
+          isExitingRef.current = true;
           lastBackPressTimeRef.current = 0;
+          if (showToastRef.current) {
+            showToastRef.current('Closing MelodySphere... 👋', '', 'info');
+          }
           window.history.back();
+          try {
+            window.close();
+          } catch (err) {}
+          setTimeout(() => {
+            isExitingRef.current = false;
+          }, 1500);
           return;
         }
 
-        // First tap: notify user and re-arm the guard
+        // First tap on explore/root: notify user and re-arm the guard
         lastBackPressTimeRef.current = now;
         if (showToastRef.current) {
-          showToastRef.current('Press back again to exit 👋', '', 'info');
+          showToastRef.current('Press back again to exit 👋', 'Tap back once more to close app', 'warning');
         }
         window.history.pushState({ view: 'explore', modal: null, isGuard: true }, '', '#explore');
+        guardGestureArmedRef.current = true;
         return;
       }
 
       // 4. Tab navigation back/forward (Library -> Search -> Explore)
       if (state?.view) {
+        currentViewRef.current = state.view;
         setCurrentView(state.view);
         if (state.view === 'explore') {
           window.history.pushState({ view: 'explore', modal: null, isGuard: true }, '', '#explore');
+          guardGestureArmedRef.current = true;
         }
       } else {
+        currentViewRef.current = 'explore';
         setCurrentView('explore');
         window.history.pushState({ view: 'explore', modal: null, isGuard: true }, '', '#explore');
+        guardGestureArmedRef.current = true;
       }
     };
 
@@ -149,20 +202,24 @@ export function UIProvider({ children }) {
     if (!view || (view === currentViewRef.current && !activeModalRef.current)) return;
 
     if (activeModalRef.current) {
+      activeModalRef.current = null;
       setActiveModal(null);
       setModalData(null);
     }
 
+    currentViewRef.current = view;
     setCurrentView(view);
     if (pushHistory) {
       window.history.pushState({ view, modal: null }, '', `#${view}`);
       if (view === 'explore') {
         window.history.pushState({ view: 'explore', modal: null, isGuard: true }, '', '#explore');
+        guardGestureArmedRef.current = true;
       }
     }
   }, []);
 
   const openModal = useCallback((type, data = null) => {
+    activeModalRef.current = type;
     setActiveModal(type);
     setModalData(data);
     // Push modal entry into browser history so hardware/browser back closes it!
@@ -175,6 +232,7 @@ export function UIProvider({ children }) {
 
   const closeModal = useCallback(() => {
     if (!activeModalRef.current) return;
+    activeModalRef.current = null;
     setActiveModal(null);
     setModalData(null);
     if (window.history.state?.modal) {
